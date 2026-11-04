@@ -1,0 +1,214 @@
+<div align="center">
+
+# KeepSave
+
+**A personal, KeePass-compatible password manager written in native Rust,
+with a minimalist dark "liquid glass" UI and Google Drive sync.**
+
+[![CI](https://github.com/Juanestban/keepsave/actions/workflows/ci.yml/badge.svg)](https://github.com/Juanestban/keepsave/actions/workflows/ci.yml)
+[![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](#license)
+![Rust](https://img.shields.io/badge/rust-2024%20edition-orange.svg)
+![Platform](https://img.shields.io/badge/platform-Windows-0078D6.svg)
+
+</div>
+
+> [!WARNING]
+> KeepSave is in **early development**. The core vault library is done, but
+> the desktop UI is still being built. Don't trust it with real passwords yet.
+> See [ROADMAP.md](ROADMAP.md) for the current status.
+
+## Why KeepSave?
+
+KeePass is great, but it looks dated, and keeping a vault in sync across
+computers takes manual work. KeepSave keeps what makes KeePass trustworthy and
+adds:
+
+- **Standard KDBX4 files.** Your vault is a normal KeePass database, so you
+  can always open it in KeePassXC or KeePass. No lock-in.
+- **A modern interface.** Minimalist, dark, translucent glass panels over a
+  soft animated background, with fast and fluid animations.
+- **Google Drive sync built in.** Connect your Drive once and your vaults sync
+  both ways, with a KeePass-style merge and versioned backups. On a new PC you
+  sign in and import your vaults.
+- **Local-first and private.** The vault is encrypted on your machine before
+  anything is uploaded. Google only ever stores the encrypted file.
+
+## Features
+
+| Feature | Status |
+| --- | --- |
+| Create / open / save KDBX4 vaults (Argon2id, atomic writes) | ✅ Done (core) |
+| Groups, entries, custom fields (protected or plain) | ✅ Done (core) |
+| Entry history (last 10 versions) with restore | ✅ Done (core) |
+| Recycle bin with permanent delete | ✅ Done (core) |
+| Argon2id calibrated to ~1 s unlock with 64 MiB | ✅ Done (core) |
+| Password generator: characters or EFF passphrase, with entropy | ✅ Done (core) |
+| Search across title, username, URL, notes and tags | ✅ Done (core) |
+| Liquid glass UI, Inter font, Phosphor icons | 🚧 M2 |
+| Spanish and English, with system language detection | 🚧 M2 |
+| Main screen, clipboard auto-clear (15 s), shortcuts, autosave | ⬜ M3 |
+| Auto-lock (inactivity, minimize, OS sleep) | ⬜ M3 |
+| Google Drive connection and import on a new PC | ⬜ M4 |
+| Bidirectional sync, merge and versioned backups | ⬜ M5 |
+| Settings, optional Windows 11 Acrylic/Mica, portable `.exe` | ⬜ M6 |
+
+Planned after v1: auto-type, attachments, key files, Windows Hello unlock,
+entry templates, CSV import, an MSI installer and auto-update.
+
+## Installation
+
+There are no prebuilt releases yet. A portable Windows `.exe` will be
+published on the [Releases](https://github.com/Juanestban/keepsave/releases)
+page when v1 is ready (milestone M6). Until then, build from source.
+
+### Requirements (all platforms)
+
+- [Rust](https://rustup.rs/), latest stable (edition 2024 needs 1.85 or newer)
+- Git
+- A GPU driver that supports DirectX 12, Vulkan or Metal (used by `wgpu`)
+
+### Windows (primary platform)
+
+1. Install the **Visual Studio Build Tools** with the *Desktop development
+   with C++* workload. Rust needs them for linking on Windows.
+2. Install Rust from <https://rustup.rs/> (pick the default
+   `x86_64-pc-windows-msvc` toolchain).
+3. Clone and build:
+
+   ```powershell
+   git clone https://github.com/Juanestban/keepsave.git
+   cd keepsave
+   cargo build --release -p keepsave-app
+   ```
+
+4. The portable executable is at `target\release\keepsave.exe`. Copy it
+   anywhere and run it. No installer is needed.
+
+### macOS (not officially supported yet)
+
+KeepSave targets Windows first. It is written in cross-platform Rust, so
+building on macOS should work, but it isn't tested yet.
+
+```sh
+xcode-select --install                       # compiler and linker
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+git clone https://github.com/Juanestban/keepsave.git
+cd keepsave
+cargo build --release -p keepsave-app
+./target/release/keepsave
+```
+
+### Linux (not officially supported yet)
+
+Like macOS, this should work but isn't tested yet. The GUI and the system
+keyring need a few development packages. On Debian/Ubuntu:
+
+```sh
+sudo apt install build-essential pkg-config libxkbcommon-dev \
+  libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
+  libgtk-3-dev libdbus-1-dev libssl-dev
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+git clone https://github.com/Juanestban/keepsave.git
+cd keepsave
+cargo build --release -p keepsave-app
+./target/release/keepsave
+```
+
+On Fedora, install the matching packages: `gcc pkg-config libxkbcommon-devel
+libxcb-devel gtk3-devel dbus-devel openssl-devel`.
+
+### Google Drive credentials (optional, for building with sync)
+
+Drive sync needs your own Google OAuth client. Follow
+[docs/GOOGLE_SETUP.md](docs/GOOGLE_SETUP.md) to create one, then put the
+values in a `.env` file at the repo root:
+
+```dotenv
+KEEPSAVE_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+KEEPSAVE_GOOGLE_CLIENT_SECRET=your-client-secret
+```
+
+`.env` is git-ignored. Never commit it. Without it, KeepSave still builds and
+works as a local-only password manager.
+
+## Security model
+
+- **Encryption:** KDBX4 with Argon2id. KeepSave calibrates the key derivation
+  so that unlocking takes about one second on your machine, using 64 MiB of
+  memory.
+- **Secrets in memory:** passwords are held in `secrecy`/`zeroize` types and
+  wiped when dropped. They are never logged and never printed for debugging.
+- **Clipboard:** copied secrets are cleared after 15 seconds.
+- **Auto-lock:** after 5 minutes of inactivity, when the window is minimized,
+  and when the OS goes to sleep.
+- **Google Drive:** OAuth uses a loopback redirect with PKCE and only the
+  `drive.file` scope, so KeepSave can only see the files it created itself.
+  The refresh token is stored in the OS keyring (Windows Credential Manager),
+  not in a config file.
+- **Generator:** uses the OS random number generator. Passphrases use the
+  [EFF large wordlist](https://www.eff.org/dice).
+
+Your master password can't be recovered. If you forget it, the vault is
+gone. Keep a backup of it somewhere safe.
+
+## Where KeepSave stores data
+
+| What | Where (Windows) |
+| --- | --- |
+| Vaults | Wherever you choose (`.kdbx` files) |
+| Settings | `%APPDATA%\KeepSave\config.toml` |
+| Google refresh token | Windows Credential Manager |
+| Drive copies | A visible `KeepSave/` folder in your Drive, backups in `KeepSave/backups/` (last 10) |
+
+## Project layout
+
+```
+crates/keepsave-core   # vault model, KDBX I/O, merge, generator (no UI, no network)
+crates/keepsave-sync   # Google OAuth and the Drive REST client
+crates/keepsave-app    # eframe desktop app: theme, animations, i18n, screens
+docs/                  # design decisions and the Google setup guide
+```
+
+The architecture and the reasoning behind every decision are in
+[docs/DESIGN.md](docs/DESIGN.md).
+
+## Development
+
+```sh
+cargo run -p keepsave-app                               # run the app
+cargo test --workspace                                  # run the tests
+cargo test -p keepsave-core --release -- --ignored      # slow Argon2 calibration test
+cargo fmt --all -- --check                              # check formatting
+cargo clippy --workspace --all-targets -- -D warnings   # lint
+```
+
+CI runs formatting, clippy and the tests on Windows for every push to `main`
+and every pull request.
+
+Code, comments, commit messages and docs are in English. Commits follow
+[Conventional Commits](https://www.conventionalcommits.org/) (`feat(core): …`,
+`fix(app): …`, `docs: …`).
+
+## Acknowledgements
+
+- [KeePass](https://keepass.info/) and [KeePassXC](https://keepassxc.org/),
+  for the format and the behavior KeepSave follows.
+- The [`keepass`](https://crates.io/crates/keepass) crate, for KDBX4 support.
+- [egui / eframe](https://github.com/emilk/egui), for the UI framework.
+- The [EFF large wordlist](https://www.eff.org/dice) by the Electronic
+  Frontier Foundation, licensed under
+  [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/us/).
+
+## License
+
+Licensed under either of
+
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE))
+- MIT license ([LICENSE-MIT](LICENSE-MIT))
+
+at your option.
+
+Unless you explicitly state otherwise, any contribution intentionally
+submitted for inclusion in this work by you, as defined in the Apache-2.0
+license, shall be dual licensed as above, without any additional terms or
+conditions.
