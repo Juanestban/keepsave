@@ -11,16 +11,16 @@ rationale lives in [docs/DESIGN.md](docs/DESIGN.md).
 - [x] Google setup guide → `docs/GOOGLE_SETUP.md`
 - [x] `CLAUDE.md`, `ROADMAP.md`, `LICENSE-MIT`, `LICENSE-APACHE`
 
-## M1 — Workspace & core ⬜
+## M1 — Workspace & core ✅
 
-- [ ] Convert to Cargo workspace: `crates/keepsave-core`, `crates/keepsave-sync`, `crates/keepsave-app`
-- [ ] Workspace metadata: `license = "MIT OR Apache-2.0"`, repository URL, edition 2024
-- [ ] Core domain model (vault, group, entry, custom fields) over the `keepass` crate
-- [ ] Create / open / save KDBX4 with Argon2id, plus KDF calibration (~1 s, 64 MiB)
-- [ ] Recycle bin and entry history
-- [ ] Password generator (character + passphrase modes, entropy)
-- [ ] Unit tests: KDBX round-trip and generator
-- [ ] CI workflow (fmt, clippy, test on Windows)
+- [x] Convert to Cargo workspace: `crates/keepsave-core`, `crates/keepsave-sync`, `crates/keepsave-app`
+- [x] Workspace metadata: `license = "MIT OR Apache-2.0"`, repository URL, edition 2024
+- [x] Core domain model (vault, group, entry, custom fields) over the `keepass` crate
+- [x] Create / open / save KDBX4 with Argon2id, plus KDF calibration (~1 s, 64 MiB)
+- [x] Recycle bin and entry history
+- [x] Password generator (character + passphrase modes, entropy)
+- [x] Unit tests: KDBX round-trip and generator
+- [x] CI workflow (fmt, clippy, test on Windows)
 
 ## M2 — UI foundation ⬜
 
@@ -63,6 +63,7 @@ rationale lives in [docs/DESIGN.md](docs/DESIGN.md).
 - [ ] Animation polish and performance pass
 - [ ] Release profile (LTO) and portable `.exe`
 - [ ] Manual check: vault opens in KeePassXC
+- [ ] About screen with EFF wordlist attribution (CC BY 3.0)
 
 ## Post-v1 backlog
 

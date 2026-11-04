@@ -1,0 +1,16 @@
+[package]
+name = "keepsave-app"
+description = "KeepSave desktop app"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "keepsave"
+path = "src/main.rs"
+
+[dependencies]
+keepsave-core.workspace = true
+keepsave-sync.workspace = true

@@ -1,0 +1,11 @@
+[package]
+name = "keepsave-sync"
+description = "Google Drive sync for KeepSave"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+keepsave-core.workspace = true

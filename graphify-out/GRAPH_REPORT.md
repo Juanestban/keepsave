@@ -1,97 +1,122 @@
 # Graph Report - keepsave  (2026-11-04)
 
 ## Corpus Check
-- Corpus is ~2,669 words - fits in a single context window. You may not need a graph.
+- Corpus is ~6,013 words - fits in a single context window. You may not need a graph.
 
 ## Summary
-- 58 nodes · 87 edges · 12 communities (5 shown, 7 thin omitted)
-- Extraction: 55% EXTRACTED · 45% INFERRED · 0% AMBIGUOUS · INFERRED: 39 edges (avg confidence: 0.9)
-- Token cost: 66,809 input · 0 output
+- 248 nodes · 425 edges · 16 communities (10 shown, 6 thin omitted)
+- Extraction: 92% EXTRACTED · 8% INFERRED · 0% AMBIGUOUS · INFERRED: 33 edges (avg confidence: 0.86)
+- Token cost: 52,304 input · 0 output
 
 ## Community Hubs (Navigation)
-- Secrets & Google OAuth
-- Docs & Workflow
-- KDBX Storage & Core
+- CI & Roadmap
+- Password Generator
+- Docs & Conventions
+- Vault API
+- Entry Model
+- KDF Calibration
+- Vault Internals
+- Core Errors
+- Vault Tests
+- Design: Secrets & Sync
 - Workspace Crates
-- UI Screens & i18n
-- Glass Look & Release
-- Sync & Merge
-- Scope & Generator
-- Cargo Package
 
 ## God Nodes (most connected - your core abstractions)
-1. `CLAUDE.md (Claude Code guidance)` - 10 edges
-2. `Q11 - OAuth (Desktop client, loopback + PKCE, drive.file)` - 7 edges
-3. `M4 - Google Drive connection` - 6 edges
-4. `Q14 - Cargo workspace architecture` - 6 edges
-5. `keepsave-core crate` - 6 edges
-6. `keepsave-sync crate` - 6 edges
-7. `M1 - Workspace & core` - 5 edges
-8. `KeepSave Design document` - 5 edges
-9. `config.toml settings file` - 5 edges
-10. `Q13 - Sync behavior (triggers, change detection, offline, backups)` - 5 edges
+1. `Vault` - 36 edges
+2. `CoreError` - 17 edges
+3. `KdfParams` - 16 edges
+4. `EntryData` - 15 edges
+5. `new_vault()` - 10 edges
+6. `EntrySummary` - 9 edges
+7. `KeepSave Roadmap` - 9 edges
+8. `M1 - Workspace & core` - 9 edges
+9. `sample_entry()` - 8 edges
+10. `CLAUDE.md (Claude Code guidance)` - 8 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `Never block the UI thread` --semantically_similar_to--> `Q14 - Cargo workspace architecture`  [INFERRED] [semantically similar]
   CLAUDE.md → docs/DESIGN.md
 - `Secrets handling convention (secrecy/zeroize, keyring)` --semantically_similar_to--> `Q10 - Memory hygiene and locking`  [INFERRED] [semantically similar]
   CLAUDE.md → docs/DESIGN.md
-- `CLAUDE.md (Claude Code guidance)` --references--> `Q2 - KDBX4 file format`  [INFERRED]
-  CLAUDE.md → docs/DESIGN.md
-- `Dependency direction app -> sync -> core` --conceptually_related_to--> `Q14 - Cargo workspace architecture`  [INFERRED]
-  CLAUDE.md → docs/DESIGN.md
-- `M1 - Workspace & core` --implements--> `Q14 - Cargo workspace architecture`  [INFERRED]
-  ROADMAP.md → docs/DESIGN.md
+- `Build-time credential embedding (KEEPSAVE_GOOGLE_CLIENT_ID/SECRET via .env)` --references--> `M4 - Google Drive connection`  [INFERRED]
+  docs/GOOGLE_SETUP.md → ROADMAP.md
+- `M1 - Workspace & core` --references--> `CI Workflow (ci.yml)`  [INFERRED]
+  ROADMAP.md → .github/workflows/ci.yml
+- `cargo test --workspace step` --references--> `keepsave-core crate`  [INFERRED]
+  .github/workflows/ci.yml → ROADMAP.md
 
 ## Import Cycles
 - None detected.
 
 ## Hyperedges (group relationships)
+- **CI quality gate (fmt, clippy, test)** — _github_workflows_ci_cargo_fmt_check, _github_workflows_ci_cargo_clippy, _github_workflows_ci_cargo_test [EXTRACTED 1.00]
 - **KeepSave Cargo workspace crates (app -> sync -> core)** — docs_design_keepsave_core, docs_design_keepsave_sync, docs_design_keepsave_app, docs_design_q14_architecture, claude_dependency_direction [EXTRACTED 1.00]
+- **KeepSave Cargo workspace crates** — roadmap_keepsave_core, roadmap_keepsave_sync, roadmap_keepsave_app [EXTRACTED 1.00]
+- **RemoteStore trait and its implementations** — roadmap_remotestore, roadmap_drive_rest_impl, roadmap_fake_remotestore [EXTRACTED 1.00]
 - **Google Drive OAuth + sync flow** — docs_design_q11_oauth, docs_design_q13_sync_behavior, docs_design_keepass_style_merge, docs_design_remotestore_trait, docs_google_setup_desktop_oauth_client, docs_design_q17_new_pc_flow [INFERRED 0.85]
 - **Secret storage and memory hygiene** — claude_secrets_handling, docs_design_q10_memory_hygiene_locking, docs_design_q12_secrets_vs_settings, docs_design_keyring, docs_design_config_toml [INFERRED 0.85]
 
-## Communities (12 total, 7 thin omitted)
+## Communities (16 total, 6 thin omitted)
 
-### Community 0 - "Secrets & Google OAuth"
-Cohesion: 0.23
-Nodes (9): config.toml settings file, drive.file OAuth scope, keyring OS credential store, Q17 - New PC import-from-Drive flow, Build-time credential embedding (KEEPSAVE_GOOGLE_CLIENT_ID/SECRET via .env), Settings -> Google Drive Connect/Disconnect, Desktop app OAuth client, OAuth consent screen (External, In production) (+1 more)
+### Community 0 - "CI & Roadmap"
+Cohesion: 0.07
+Nodes (37): CI Workflow (ci.yml), cargo clippy -D warnings step, cargo fmt --check step, cargo test --workspace step, CI check job (windows-latest), Swatinem/rust-cache, docs/DESIGN.md, docs/GOOGLE_SETUP.md (+29 more)
 
-### Community 1 - "Docs & Workflow"
-Cohesion: 0.38
-Nodes (5): graphify knowledge-graph refresh workflow, KeepSave Design document, Google Drive setup guide, M0 - Design & repo bootstrap (done), KeepSave Roadmap
+### Community 1 - "Password Generator"
+Cohesion: 0.09
+Nodes (22): AMBIGUOUS, CharsetOptions, DIGITS, entropy_matches_pool_size(), exclude_ambiguous_removes_them(), generate_passphrase(), generate_password(), GeneratorError (+14 more)
 
-### Community 2 - "KDBX Storage & Core"
-Cohesion: 0.33
-Nodes (3): keepass crate, KeePassXC, M1 - Workspace & core
+### Community 2 - "Docs & Conventions"
+Cohesion: 0.09
+Nodes (16): CLAUDE.md (Claude Code guidance), graphify knowledge-graph refresh workflow, KeepSave password manager, KeepSave Design document, drive.file OAuth scope, keepass crate, KeePassXC, keepsave-app crate (+8 more)
 
-### Community 3 - "Workspace Crates"
-Cohesion: 0.53
-Nodes (6): CLAUDE.md (Claude Code guidance), KeepSave password manager, keepsave-app crate, keepsave-core crate, keepsave-sync crate, RemoteStore trait
+### Community 4 - "Entry Model"
+Cohesion: 0.16
+Nodes (5): CustomField, EntryData, EntrySummary, HistoryItem, is_reserved()
 
-### Community 4 - "UI Screens & i18n"
-Cohesion: 0.40
-Nodes (4): Q16 - Screens (Welcome, Unlock, Main, Settings), Q19 - KeePass-compatible keyboard shortcuts, M2 - UI foundation, M3 - Main screen
+### Community 5 - "KDF Calibration"
+Cohesion: 0.12
+Nodes (9): calibrate_respects_bounds(), config_round_trip(), default_parallelism(), KdfParams, .DEFAULT_MEMORY_BYTES, .DEFAULT_UNLOCK_TIME, .MAX_ITERATIONS, .MIN_ITERATIONS (+1 more)
+
+### Community 6 - "Vault Internals"
+Cohesion: 0.12
+Nodes (7): DEFAULT_HISTORY_MAX_ITEMS, DEFAULT_HISTORY_MAX_SIZE, GENERATOR, key_for(), RECYCLE_BIN_ICON, RECYCLE_BIN_NAME, trim_history()
+
+### Community 7 - "Core Errors"
+Cohesion: 0.19
+Nodes (10): CoreError, EntryNotFound, GroupNotFound, HistoryNotFound, InvalidKey, Io, Kdf, Open (+2 more)
+
+### Community 8 - "Vault Tests"
+Cohesion: 0.32
+Nodes (12): assert_same(), changing_the_password_applies_on_next_save(), deleting_goes_through_the_recycle_bin(), deleting_groups_and_emptying_the_bin(), history_is_capped_at_ten_versions(), new_vault(), PASSWORD, sample_entry() (+4 more)
+
+### Community 9 - "Design: Secrets & Sync"
+Cohesion: 0.19
+Nodes (6): config.toml settings file, keyring OS credential store, Q16 - Screens (Welcome, Unlock, Main, Settings), Q17 - New PC import-from-Drive flow, Q19 - KeePass-compatible keyboard shortcuts, Settings -> Google Drive Connect/Disconnect
+
+### Community 10 - "Workspace Crates"
+Cohesion: 1.00
+Nodes (3): keepsave-app, keepsave-core, keepsave-sync
 
 ## Knowledge Gaps
-- **4 isolated node(s):** `keepsave`, `KeepSave password manager`, `graphify knowledge-graph refresh workflow`, `Post-v1 backlog`
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 14 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **7 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **29 isolated node(s):** `InvalidKey`, `Save`, `Io`, `EntryNotFound`, `GroupNotFound` (+24 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 82 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **6 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `CLAUDE.md (Claude Code guidance)` connect `Workspace Crates` to `Docs & Workflow`, `KDBX Storage & Core`?**
-  _High betweenness centrality (0.248) - this node is a cross-community bridge._
-- **Are the 4 inferred relationships involving `Q11 - OAuth (Desktop client, loopback + PKCE, drive.file)` (e.g. with `keepsave-sync crate` and `Desktop app OAuth client`) actually correct?**
-  _`Q11 - OAuth (Desktop client, loopback + PKCE, drive.file)` has 4 INFERRED edges - model-reasoned connections that need verification._
-- **What connects `keepsave`, `KeepSave password manager`, `graphify knowledge-graph refresh workflow` to the rest of the system?**
-  _4 weakly-connected nodes found - possible documentation gaps or missing edges._
-- **Why does `Q11 - OAuth (Desktop client, loopback + PKCE, drive.file)` connect `Secrets & Google OAuth` to `Docs & Workflow`, `Workspace Crates`?**
-  _High betweenness centrality (0.172) - this node is a cross-community bridge._
-- **Are the 3 inferred relationships involving `M4 - Google Drive connection` (e.g. with `Build-time credential embedding (KEEPSAVE_GOOGLE_CLIENT_ID/SECRET via .env)` and `Q11 - OAuth (Desktop client, loopback + PKCE, drive.file)`) actually correct?**
-  _`M4 - Google Drive connection` has 3 INFERRED edges - model-reasoned connections that need verification._
-- **Why does `Q16 - Screens (Welcome, Unlock, Main, Settings)` connect `UI Screens & i18n` to `Secrets & Google OAuth`, `KDBX Storage & Core`?**
-  _High betweenness centrality (0.141) - this node is a cross-community bridge._
-- **Are the 3 inferred relationships involving `Q14 - Cargo workspace architecture` (e.g. with `Dependency direction app -> sync -> core` and `Never block the UI thread`) actually correct?**
-  _`Q14 - Cargo workspace architecture` has 3 INFERRED edges - model-reasoned connections that need verification._
+- **Why does `Vault` connect `Vault API` to `Vault Tests`, `Entry Model`, `KDF Calibration`, `Vault Internals`?**
+  _High betweenness centrality (0.099) - this node is a cross-community bridge._
+- **What connects `InvalidKey`, `Save`, `Io` to the rest of the system?**
+  _29 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Should `CI & Roadmap` be split into smaller, more focused modules?**
+  _Cohesion score 0.06747638326585695 - nodes in this community are weakly interconnected._
+- **Why does `CoreError` connect `Core Errors` to `Vault Tests`, `Entry Model`, `KDF Calibration`, `Vault Internals`?**
+  _High betweenness centrality (0.071) - this node is a cross-community bridge._
+- **Should `Password Generator` be split into smaller, more focused modules?**
+  _Cohesion score 0.09411764705882353 - nodes in this community are weakly interconnected._
+- **Why does `KdfParams` connect `KDF Calibration` to `Vault Tests`, `Entry Model`, `Vault Internals`?**
+  _High betweenness centrality (0.063) - this node is a cross-community bridge._
+- **Should `Docs & Conventions` be split into smaller, more focused modules?**
+  _Cohesion score 0.09359605911330049 - nodes in this community are weakly interconnected._

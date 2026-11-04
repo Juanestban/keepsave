@@ -1,6 +1,19 @@
-[package]
-name = "keepsave"
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
 version = "0.1.0"
 edition = "2024"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/Juanestban/keepsave"
+authors = ["Juan Esteban <juanestban000@gmail.com>"]
 
-[dependencies]
+[workspace.dependencies]
+keepsave-core = { path = "crates/keepsave-core" }
+keepsave-sync = { path = "crates/keepsave-sync" }
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
