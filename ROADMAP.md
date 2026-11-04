@@ -1,0 +1,77 @@
+# Roadmap
+
+Status legend: ⬜ todo · 🟨 in progress · ✅ done
+
+Every milestone ends with something runnable and a suggested commit. Design
+rationale lives in [docs/DESIGN.md](docs/DESIGN.md).
+
+## M0 — Design & repo bootstrap ✅
+
+- [x] Design interview (Q1–Q23) → `docs/DESIGN.md`
+- [x] Google setup guide → `docs/GOOGLE_SETUP.md`
+- [x] `CLAUDE.md`, `ROADMAP.md`, `LICENSE-MIT`, `LICENSE-APACHE`
+
+## M1 — Workspace & core ⬜
+
+- [ ] Convert to Cargo workspace: `crates/keepsave-core`, `crates/keepsave-sync`, `crates/keepsave-app`
+- [ ] Workspace metadata: `license = "MIT OR Apache-2.0"`, repository URL, edition 2024
+- [ ] Core domain model (vault, group, entry, custom fields) over the `keepass` crate
+- [ ] Create / open / save KDBX4 with Argon2id, plus KDF calibration (~1 s, 64 MiB)
+- [ ] Recycle bin and entry history
+- [ ] Password generator (character + passphrase modes, entropy)
+- [ ] Unit tests: KDBX round-trip and generator
+- [ ] CI workflow (fmt, clippy, test on Windows)
+
+## M2 — UI foundation ⬜
+
+- [ ] eframe app with the wgpu backend
+- [ ] Glass theme: tokens, panels, borders, highlights, shadows
+- [ ] Animated blurred background shader
+- [ ] Inter font and Phosphor icons
+- [ ] Fluent i18n (es, en) with system locale detection
+- [ ] Welcome and Unlock screens; Argon2 runs on a worker thread
+
+## M3 — Main screen ⬜
+
+- [ ] Sidebar with groups, entry list, sliding detail panel
+- [ ] Entry CRUD, custom fields, reveal toggle
+- [ ] Search (`Ctrl+F`)
+- [ ] Clipboard copy with auto-clear
+- [ ] Keyboard shortcuts (KeePass set)
+- [ ] Autosave
+- [ ] Auto-lock (inactivity, minimize, OS sleep / session lock)
+
+## M4 — Google Drive connection ⬜
+
+- [ ] OAuth (loopback + PKCE); refresh token stored in `keyring`
+- [ ] `RemoteStore` trait and Drive REST implementation (folder, list, upload, download)
+- [ ] Import-from-Drive flow (new PC)
+- [ ] Link a vault to a Drive `fileId` in `config.toml`
+
+## M5 — Sync & merge ⬜
+
+- [ ] KeePass-style merge by UUID / mtime, honoring `DeletedObjects`; losers go to history
+- [ ] Sync triggers: unlock, debounced save, manual button
+- [ ] Offline "pending upload" state
+- [ ] Versioned backups in `KeepSave/backups/` (keep 10)
+- [ ] Merge tests and sync tests with a fake `RemoteStore`
+
+## M6 — Settings, polish, release ⬜
+
+- [ ] Settings screen (General, Security, Google Drive, Language, Appearance)
+- [ ] Optional Windows 11 Acrylic/Mica (`window-vibrancy`)
+- [ ] Animation polish and performance pass
+- [ ] Release profile (LTO) and portable `.exe`
+- [ ] Manual check: vault opens in KeePassXC
+
+## Post-v1 backlog
+
+- Auto-type
+- Attachments
+- Key files
+- Windows Hello quick unlock
+- Entry templates
+- Import from CSV and other managers
+- MSI installer (`cargo-wix`) and auto-update
+- Real backdrop blur
+- Code signing
