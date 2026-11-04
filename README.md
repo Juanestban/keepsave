@@ -13,8 +13,8 @@ with a minimalist dark "liquid glass" UI and Google Drive sync.**
 </div>
 
 > [!WARNING]
-> KeepSave is in **early development**. The core vault library is done, but
-> the desktop UI is still being built. Don't trust it with real passwords yet.
+> KeepSave is in **early development**. You can create and unlock vaults, but
+> you can't view or edit entries yet. Don't trust it with real passwords yet.
 > See [ROADMAP.md](ROADMAP.md) for the current status.
 
 ## Why KeepSave?
@@ -44,8 +44,9 @@ adds:
 | Argon2id calibrated to ~1 s unlock with 64 MiB | ✅ Done (core) |
 | Password generator: characters or EFF passphrase, with entropy | ✅ Done (core) |
 | Search across title, username, URL, notes and tags | ✅ Done (core) |
-| Liquid glass UI, Inter font, Phosphor icons | 🚧 M2 |
-| Spanish and English, with system language detection | 🚧 M2 |
+| Liquid glass UI, Inter font, Phosphor icons | ✅ Done |
+| Spanish and English, with system language detection | ✅ Done |
+| Welcome, create vault and unlock screens | ✅ Done |
 | Main screen, clipboard auto-clear (15 s), shortcuts, autosave | ⬜ M3 |
 | Auto-lock (inactivity, minimize, OS sleep) | ⬜ M3 |
 | Google Drive connection and import on a new PC | ⬜ M4 |
@@ -195,6 +196,10 @@ Code, comments, commit messages and docs are in English. Commits follow
   for the format and the behavior KeepSave follows.
 - The [`keepass`](https://crates.io/crates/keepass) crate, for KDBX4 support.
 - [egui / eframe](https://github.com/emilk/egui), for the UI framework.
+- [Inter](https://rsms.me/inter/) by Rasmus Andersson, licensed under the
+  [SIL Open Font License 1.1](crates/keepsave-app/assets/fonts/OFL.txt).
+- [Phosphor Icons](https://phosphoricons.com/), through
+  [`egui-phosphor`](https://crates.io/crates/egui-phosphor).
 - The [EFF large wordlist](https://www.eff.org/dice) by the Electronic
   Frontier Foundation, licensed under
   [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/us/).

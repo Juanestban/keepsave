@@ -12,5 +12,20 @@ name = "keepsave"
 path = "src/main.rs"
 
 [dependencies]
+directories = "6.0.0"
+eframe = { version = "0.36", default-features = false, features = ["wgpu", "accesskit", "default_fonts", "wayland", "x11"] }
+egui-phosphor = "0.14.0"
+fluent-bundle = "0.16.0"
 keepsave-core.workspace = true
 keepsave-sync.workspace = true
+rfd = "0.17.2"
+secrecy = "0.10.3"
+serde = { version = "1.0.229", features = ["derive"] }
+sys-locale = "0.3.2"
+tokio = { version = "1.54.1", features = ["rt-multi-thread"] }
+toml = "1.2.0"
+unic-langid = "0.9.6"
+zeroize = "1.9.1"
+
+[dev-dependencies]
+tempfile = "3"

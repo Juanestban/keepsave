@@ -22,14 +22,15 @@ rationale lives in [docs/DESIGN.md](docs/DESIGN.md).
 - [x] Unit tests: KDBX round-trip and generator
 - [x] CI workflow (fmt, clippy, test on Windows)
 
-## M2 — UI foundation ⬜
+## M2 — UI foundation ✅
 
-- [ ] eframe app with the wgpu backend
-- [ ] Glass theme: tokens, panels, borders, highlights, shadows
-- [ ] Animated blurred background shader
-- [ ] Inter font and Phosphor icons
-- [ ] Fluent i18n (es, en) with system locale detection
-- [ ] Welcome and Unlock screens; Argon2 runs on a worker thread
+- [x] eframe app with the wgpu backend
+- [x] Glass theme: tokens, panels, borders, highlights, shadows
+- [x] Animated blurred background shader
+- [x] Inter font and Phosphor icons
+- [x] Fluent i18n (es, en) with system locale detection
+- [x] Welcome and Unlock screens; Argon2 runs on a worker thread
+- [x] Create-vault form with strength meter; `config.toml` with recent vaults
 
 ## M3 — Main screen ⬜
 

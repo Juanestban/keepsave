@@ -157,14 +157,23 @@ branding or assets from any existing product.
 - Spanish and English from v1. Fluent `.ftl` files loaded with
   `fluent-bundle`.
 - Default language from the OS (`sys-locale`), with a selector in Settings.
-- Font: Inter, embedded.
-- Icons: Phosphor (`egui-phosphor`).
+  Until Settings exists, the Welcome screen has an Español | English switch.
+- Font: Inter (Regular and SemiBold, SIL OFL 1.1), embedded.
+- Icons: Phosphor (`egui-phosphor`), drawn from a font family that holds only
+  Phosphor, because Inter has its own glyphs in part of the same private-use
+  range.
+- `egui-phosphor` 0.14 targets egui 0.36, so eframe stays on 0.36 until it
+  catches up.
 
 ### Q16 — Screens
 
 1. **Welcome** (first run): Create vault, Open .kdbx, Import from Google Drive.
+   - **Create vault** is a form: name, master password with a strength meter,
+     and confirmation. A save dialog then picks the file. Argon2 calibration
+     and the first save run on the worker.
 2. **Unlock**: recent vaults as glass cards, master password field, subtle
-   animation while Argon2 runs.
+   animation while Argon2 runs. A wrong password shakes the card. The app
+   opens here when there are recent vaults, otherwise on Welcome.
 3. **Main**: glass sidebar with groups, entry list in the center, detail panel
    that slides in from the right, and a persistent search bar (`Ctrl+F`).
 4. **Settings**: General, Security, Google Drive, Language, Appearance.

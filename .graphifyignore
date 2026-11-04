@@ -1,3 +1,4 @@
 # Data files with no concepts worth graphing
 crates/keepsave-core/assets/
 LICENSE-*
+crates/keepsave-app/assets/

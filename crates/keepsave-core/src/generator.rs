@@ -138,6 +138,39 @@ pub fn generate_passphrase(options: &PassphraseOptions) -> Result<SecretString, 
     Ok(SecretString::from(picked.join(&options.separator)))
 }
 
+/// Rough strength of a user-typed password: its length times log2 of the pool
+/// implied by the character classes it uses. Optimistic for dictionary words,
+/// so treat it as an upper bound for a strength meter, not a guarantee.
+pub fn estimate_entropy_bits(password: &str) -> f64 {
+    let (mut lower, mut upper, mut digit, mut symbol, mut other) =
+        (false, false, false, false, false);
+    for c in password.chars() {
+        match c {
+            'a'..='z' => lower = true,
+            'A'..='Z' => upper = true,
+            '0'..='9' => digit = true,
+            c if SYMBOLS.contains(c) || c == ' ' => symbol = true,
+            _ => other = true,
+        }
+    }
+    let pool = [
+        (lower, LOWERCASE.len()),
+        (upper, UPPERCASE.len()),
+        (digit, DIGITS.len()),
+        (symbol, SYMBOLS.len() + 1),
+        // Accented letters and other Unicode: a conservative guess.
+        (other, 64),
+    ]
+    .into_iter()
+    .filter(|(used, _)| *used)
+    .map(|(_, size)| size)
+    .sum::<usize>();
+    if pool == 0 {
+        return 0.0;
+    }
+    password.chars().count() as f64 * (pool as f64).log2()
+}
+
 fn wordlist() -> Vec<&'static str> {
     WORDLIST.lines().filter(|line| !line.is_empty()).collect()
 }
@@ -235,5 +268,15 @@ mod tests {
         assert!((digits_only.entropy_bits() - 10.0 * 10f64.log2()).abs() < 1e-9);
         let passphrase = PassphraseOptions::default().entropy_bits();
         assert!((passphrase - 5.0 * 7776f64.log2()).abs() < 1e-9);
+    }
+
+    #[test]
+    fn estimate_grows_with_length_and_classes() {
+        assert_eq!(estimate_entropy_bits(""), 0.0);
+        assert!((estimate_entropy_bits("1234") - 4.0 * 10f64.log2()).abs() < 1e-9);
+        let lower = estimate_entropy_bits("abcdefgh");
+        let mixed = estimate_entropy_bits("abcdEFG1");
+        assert!(mixed > lower);
+        assert!(estimate_entropy_bits("abcdefghijkl") > lower);
     }
 }
