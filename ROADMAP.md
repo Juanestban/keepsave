@@ -64,14 +64,15 @@ Code complete; waiting for a check with two PCs (or two vault copies) on a real 
 - [x] Merge tests and sync tests with a fake `RemoteStore`
 - [ ] Manual check: edit on two PCs, sync both, confirm nothing is lost
 
-## M6 — Settings, polish, release ⬜
+## M6 — Settings, polish, release 🟨
 
-- [ ] Settings screen (General, Security, Google Drive, Language, Appearance)
-- [ ] Optional Windows 11 Acrylic/Mica (`window-vibrancy`)
-- [ ] Animation polish and performance pass
-- [ ] Release profile (LTO) and portable `.exe`
+- [x] Settings screen (General, Security, Google Drive, Language, Appearance)
+- [x] Optional Windows 11 Mica (through DWM directly instead of `window-vibrancy`)
+- [x] Animation polish and performance pass (still background option, no repaint while minimized)
+- [x] Release profile (LTO) and portable `.exe` (about 20 MB, assets embedded)
 - [ ] Manual check: vault opens in KeePassXC
-- [ ] About screen with EFF wordlist attribution (CC BY 3.0)
+- [x] About screen with EFF wordlist attribution (CC BY 3.0)
+- [x] Standalone password generator from the main top bar
 
 ## Post-v1 backlog
 

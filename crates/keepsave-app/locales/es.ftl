@@ -217,3 +217,63 @@ toast-drive-merged =
     }
 drive-error-missing = Esta bóveda ya no está en Google Drive. Desvincúlala y vuelve a subirla.
 drive-error-password = La copia de Google Drive tiene otra contraseña maestra, así que no se tocó.
+
+## Settings
+
+settings-open = Ajustes
+settings-title = Ajustes
+settings-close = Cerrar
+settings-tab-general = General
+settings-tab-security = Seguridad
+settings-tab-drive = Google Drive
+settings-tab-language = Idioma
+settings-tab-appearance = Apariencia
+settings-tab-about = Acerca de
+settings-config-error = No se pudieron guardar los ajustes: { $details }
+settings-recent = Bóvedas recientes
+settings-recent-hint = Quitar una bóveda de esta lista no borra su archivo.
+settings-recent-empty = No hay bóvedas recientes.
+settings-recent-remove = Quitar de la lista
+settings-recent-clear = Vaciar la lista
+settings-never = Nunca
+settings-minutes = { $count } min
+settings-seconds = { $count } s
+settings-lock-after = Bloquear tras inactividad
+settings-lock-after-hint = Tras este tiempo sin usar el ratón ni el teclado.
+settings-lock-minimize = Bloquear al minimizar la ventana
+settings-lock-sleep = Bloquear al suspender el PC o bloquear la sesión
+settings-lock-sleep-windows = Por ahora solo en Windows.
+settings-clipboard-clear = Borrar lo copiado tras
+settings-clipboard-clear-hint = Solo si el portapapeles aún contiene lo que copió KeepSave.
+settings-clipboard-keep = Nunca
+settings-drive-connection = Conexión
+settings-drive-connected = Conectado a Google Drive
+settings-drive-disconnected = Sin conectar
+settings-drive-disconnect = Desconectar
+settings-drive-links = Bóvedas vinculadas
+settings-drive-links-empty = Aún no hay bóvedas vinculadas. Abre una bóveda y elige “Subir a Drive” en su barra lateral.
+settings-drive-unlink = Desvincular esta bóveda
+settings-language-system = Sistema ({ $language })
+settings-animated-background = Fondo animado
+settings-animated-background-hint = Si está apagado, el fondo queda quieto y gasta menos energía.
+settings-transparency = Transparencia del sistema
+settings-transparency-hint = Deja ver el fondo Mica de Windows 11 a través de la ventana.
+settings-transparency-unsupported = Requiere Windows 11 versión 22H2 o posterior.
+settings-restart = Reinicia KeepSave para aplicar este cambio.
+
+## About
+
+about-version = Versión { $version }
+about-license = Software libre bajo la licencia MIT o Apache 2.0.
+about-repository = Código fuente en GitHub
+about-credits = Créditos
+about-credit-inter = Tipografía Inter de Rasmus Andersson, bajo la SIL Open Font License 1.1.
+about-credit-phosphor = Iconos Phosphor, bajo la licencia MIT.
+about-credit-eff = Lista de palabras para frases de paso de la Electronic Frontier Foundation, bajo CC BY 3.0.
+about-eff-link = Listas de palabras de la EFF
+
+## Password generator
+
+generator-open = Generador de contraseñas
+generator-title = Generador de contraseñas
+gen-copy = Copiar

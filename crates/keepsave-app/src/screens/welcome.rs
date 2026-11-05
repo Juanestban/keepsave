@@ -3,10 +3,9 @@
 use eframe::egui::{Id, RichText, Ui, Vec2};
 use egui_phosphor::regular as icon;
 
-use super::{Nav, ScreenCtx, emblem, link_pair, title};
+use super::{Nav, ScreenCtx, emblem, title};
 use crate::{
   drive::DriveState,
-  i18n::Language,
   theme,
   widgets::{ActionButton, centered_column, glass_card, link},
   worker::Event,
@@ -55,9 +54,6 @@ impl Welcome {
           }
         });
       }
-      if let Some(language) = language_switch(ui, cx) {
-        nav = Some(Nav::SetLanguage(language));
-      }
     });
     nav
   }
@@ -67,16 +63,5 @@ impl Welcome {
       Event::VaultFilePicked(Some(path)) => Some(Nav::Unlock { select: Some(path) }),
       _ => None,
     }
-  }
-}
-
-/// Español | English, until the Settings screen exists.
-fn language_switch(ui: &mut Ui, cx: &ScreenCtx) -> Option<Language> {
-  let (spanish, english) = link_pair(ui, &cx.i18n.tr("language-es"), &cx.i18n.tr("language-en"));
-  let current = cx.i18n.language();
-  match (spanish, english) {
-    (true, _) if current != Language::Spanish => Some(Language::Spanish),
-    (_, true) if current != Language::English => Some(Language::English),
-    _ => None,
   }
 }

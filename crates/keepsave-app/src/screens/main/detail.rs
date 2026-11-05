@@ -11,7 +11,10 @@ use keepsave_core::{
 };
 use zeroize::Zeroizing;
 
-use super::{Action, Field, MainScreen, generator::Generator};
+use super::{
+  Action, Field, MainScreen,
+  generator::{Generator, Pick},
+};
 use crate::{
   i18n::I18n,
   screens::ScreenCtx,
@@ -581,7 +584,7 @@ fn form(ui: &mut Ui, draft: &mut Draft, vault: &Vault, groups: &[(GroupId, Strin
     };
   }
   if let Some(generator) = &mut draft.generator {
-    if let Some(value) = generator.ui(ui, cx.i18n) {
+    if let Some(value) = generator.ui(ui, cx.i18n, Pick::Use) {
       draft.password = value;
       draft.generator = None;
     }

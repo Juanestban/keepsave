@@ -2,17 +2,20 @@
 
 use std::{path::PathBuf, sync::Arc};
 
-use eframe::egui::{self, Ui};
+use eframe::egui::{self, Align2, Id, Order, Ui, Vec2};
+use egui_phosphor::regular as icon;
 use tokio::task::AbortHandle;
 
 use crate::{
+  backdrop,
   background::Background,
   config::Config,
   drive::{self, DriveState},
   fonts,
   i18n::{I18n, Language},
-  screens::{CreateVault, DriveImport, MainScreen, Nav, ScreenCtx, Unlock, Welcome},
+  screens::{CreateVault, DriveImport, MainScreen, Nav, ScreenCtx, Settings, SettingsCtx, SettingsRequest, Unlock, Welcome},
   session, theme,
+  widgets::icon_button,
   worker::{Event, Worker},
 };
 use keepsave_sync::SyncError;
@@ -41,16 +44,19 @@ pub struct KeepSaveApp {
   screen: Screen,
   /// When the current screen appeared; `None` until its first frame.
   screen_since: Option<f64>,
+  settings: Option<Settings>,
+  /// Why `config.toml` couldn't be written last time.
+  config_error: Option<String>,
 }
 
 impl KeepSaveApp {
-  pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+  /// `transparent`: the window was created for the OS backdrop.
+  pub fn new(cc: &eframe::CreationContext<'_>, config: Config, config_path: Option<PathBuf>, transparent: bool) -> Self {
     fonts::install(&cc.egui_ctx);
     theme::apply(&cc.egui_ctx);
     session::start(cc.egui_ctx.clone());
+    let transparent = transparent && backdrop::apply(cc);
 
-    let config_path = Config::default_path();
-    let config = config_path.as_deref().map(Config::load_from).unwrap_or_default();
     let language = config.language.as_deref().and_then(Language::from_code).unwrap_or_else(Language::detect);
     let screen = if config.recent_vaults.is_empty() { Screen::Welcome(Welcome) } else { Screen::Unlock(Unlock::new(None, &config)) };
 
@@ -61,11 +67,13 @@ impl KeepSaveApp {
       connecting: None,
       i18n,
       worker: Worker::new(cc.egui_ctx.clone()).expect("start the background runtime"),
-      background: Background::new(cc),
+      background: Background::new(cc, transparent),
       config,
       config_path,
       screen,
       screen_since: None,
+      settings: None,
+      config_error: None,
     }
   }
 
@@ -94,10 +102,22 @@ impl KeepSaveApp {
         Screen::Unlock(Unlock::new(Some(path), &self.config))
       }
       Nav::SetLanguage(language) => {
-        self.i18n = I18n::new(language);
-        self.config.language = Some(language.code().into());
+        self.i18n = I18n::new(language.unwrap_or_else(Language::detect));
+        self.config.language = language.map(|language| language.code().into());
         self.save_config();
         return;
+      }
+      Nav::OpenSettings => {
+        self.settings = Some(Settings::default());
+        return;
+      }
+      Nav::ForgetAllVaults => {
+        self.config.forget_all_vaults();
+        self.save_config();
+        match self.screen {
+          Screen::Unlock(_) => Screen::Welcome(Welcome),
+          _ => return,
+        }
       }
       Nav::ForgetVault(path) => {
         self.config.forget_vault(&path);
@@ -163,11 +183,44 @@ impl KeepSaveApp {
     self.screen_since = None;
   }
 
-  fn save_config(&self) {
+  fn save_config(&mut self) {
     if let Some(path) = &self.config_path {
       // Settings are a convenience: failing to write them must not
-      // interrupt what the user is doing. Settings (M6) will surface it.
-      let _ = self.config.save_to(path);
+      // interrupt what the user is doing. Settings shows the error.
+      self.config_error = self.config.save_to(path).err().map(|error| error.to_string());
+    }
+  }
+
+  /// Settings over the current screen, or the gear that opens it on the
+  /// screens without a top bar.
+  fn settings(&mut self, ctx: &egui::Context) -> Option<Nav> {
+    let Some(settings) = &mut self.settings else {
+      if !matches!(self.screen, Screen::Main(_)) {
+        let tooltip = self.i18n.tr("settings-open");
+        let open = egui::Area::new(Id::new("settings-gear"))
+          .order(Order::Foreground)
+          .anchor(Align2::RIGHT_TOP, Vec2::new(-16.0, 16.0))
+          .show(ctx, |ui| icon_button(ui, icon::GEAR_SIX, &tooltip).clicked())
+          .inner;
+        if open {
+          return Some(Nav::OpenSettings);
+        }
+      }
+      return None;
+    };
+    let before = self.config.clone();
+    let cx =
+      SettingsCtx { i18n: &self.i18n, drive: &self.drive, config_error: self.config_error.as_deref(), transparent: self.background.is_transparent() };
+    let request = settings.show(ctx, &cx, &mut self.config);
+    if self.config != before {
+      self.save_config();
+    }
+    match request? {
+      SettingsRequest::Close => {
+        self.settings = None;
+        None
+      }
+      SettingsRequest::Nav(nav) => Some(nav),
     }
   }
 
@@ -186,7 +239,15 @@ impl KeepSaveApp {
       self.drive = DriveState::Disconnected { error: Some(drive::error_message(&self.i18n, &SyncError::Reauthorize)) };
     }
 
-    let cx = ScreenCtx { i18n: &self.i18n, worker: &self.worker, config: &self.config, lift: 0.0, os_lock: false, drive: &self.drive };
+    let cx = ScreenCtx {
+      i18n: &self.i18n,
+      worker: &self.worker,
+      config: &self.config,
+      lift: 0.0,
+      os_lock: false,
+      drive: &self.drive,
+      overlay: self.settings.is_some(),
+    };
     match &mut self.screen {
       Screen::Welcome(welcome) => welcome.on_event(event),
       Screen::Create(create) => create.on_event(event, &cx),
@@ -220,7 +281,7 @@ impl eframe::App for KeepSaveApp {
     // Taken on every screen, so a lock before unlocking can't carry over.
     let os_lock = session::take_lock_request();
 
-    self.background.paint(ui);
+    self.background.paint(ui, self.config.animated_background);
     let entrance = self.entrance(ui);
 
     let nav = egui::CentralPanel::no_frame()
@@ -233,6 +294,7 @@ impl eframe::App for KeepSaveApp {
           lift: (1.0 - entrance) * ENTRANCE_LIFT,
           os_lock,
           drive: &self.drive,
+          overlay: self.settings.is_some(),
         };
         match &mut self.screen {
           Screen::Welcome(welcome) => welcome.ui(ui, &cx),
@@ -246,9 +308,12 @@ impl eframe::App for KeepSaveApp {
     if let Some(nav) = nav {
       self.navigate(nav, &ctx);
     }
+    if let Some(nav) = self.settings(&ctx) {
+      self.navigate(nav, &ctx);
+    }
   }
 
   fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
-    theme::BASE.to_normalized_gamma_f32()
+    if self.background.is_transparent() { [0.0; 4] } else { theme::BASE.to_normalized_gamma_f32() }
   }
 }

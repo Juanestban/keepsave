@@ -87,6 +87,10 @@ pub enum Action {
   UploadToDrive,
   UnlinkDrive,
   SyncNow,
+  OpenSettings,
+  OpenGenerator,
+  CloseGenerator,
+  CopyGenerated(Zeroizing<String>),
   /// The user confirmed throwing away the draft; then do the action.
   Discard(Box<Action>),
 }
@@ -246,6 +250,8 @@ pub struct MainScreen {
   drive: DriveSync,
   /// The frame time, for events that arrive between frames.
   clock: f64,
+  /// The standalone password generator, while open.
+  generator: Option<generator::Generator>,
 }
 
 impl MainScreen {
@@ -272,6 +278,7 @@ impl MainScreen {
       uploading: false,
       drive: DriveSync { pending, pending_saved: pending, needs_check: true, ..DriveSync::default() },
       clock: 0.0,
+      generator: None,
     }
   }
 
@@ -412,7 +419,7 @@ impl MainScreen {
       ui.ctx().send_viewport_cmd(ViewportCommand::CancelClose);
       actions.push(Action::CloseWindow);
     }
-    self.shortcuts(ui, &mut actions);
+    self.shortcuts(ui, cx.overlay, &mut actions);
     self.refresh_lists();
 
     let area = ui.available_rect_before_wrap().shrink(MARGIN).translate(Vec2::new(0.0, cx.lift));
@@ -426,6 +433,7 @@ impl MainScreen {
     }
     // Before the dialogs, so a discard confirmation stacks on top.
     detail::show_editor(ui, self, cx, &mut actions);
+    generator::show_tool(ui, self, cx, &mut actions);
     dialogs::show(ui, self, cx, &mut actions);
     self.paint_toast(ui, now);
 
@@ -458,11 +466,18 @@ impl MainScreen {
     wanted && !paused
   }
 
-  fn shortcuts(&mut self, ui: &Ui, actions: &mut Vec<Action>) {
+  /// `overlay`: Settings is open on top, so only locking works.
+  fn shortcuts(&mut self, ui: &Ui, overlay: bool, actions: &mut Vec<Action>) {
     if ui.input_mut(|input| input.consume_key(Modifiers::COMMAND, Key::L)) {
       actions.push(Action::Lock);
     }
-    if self.dialog.is_some() {
+    if overlay || self.dialog.is_some() {
+      return;
+    }
+    if self.generator.is_some() {
+      if ui.input_mut(|input| input.consume_key(Modifiers::NONE, Key::Escape)) {
+        actions.push(Action::CloseGenerator);
+      }
       return;
     }
 
@@ -729,6 +744,10 @@ impl MainScreen {
         self.uploading = true;
         cx.worker.upload_to_drive(client, self.vault().clone(), self.open.path.clone());
       }
+      Action::OpenSettings => return Some(Nav::OpenSettings),
+      Action::OpenGenerator => self.generator = Some(generator::Generator::new()),
+      Action::CloseGenerator => self.generator = None,
+      Action::CopyGenerated(value) => self.copy_value(&value, cx.i18n.tr("toast-copied-password"), cx),
       Action::ForceClose => {
         self.allow_close = true;
         ui.ctx().send_viewport_cmd(ViewportCommand::Close);
@@ -872,13 +891,19 @@ impl MainScreen {
         (Zeroizing::new(field.value.expose_secret().to_owned()), cx.i18n.tr_arg("toast-copied-field", "field", field.key.clone()))
       }
     };
+    self.copy_value(&value, label, cx);
+  }
+
+  /// Copies a secret, cleared after the configured time.
+  fn copy_value(&mut self, value: &str, label: String, cx: &ScreenCtx) {
+    let tr = |key| cx.i18n.tr(key);
     if value.is_empty() {
       return;
     }
 
     let seconds = cx.config.clipboard_clear_seconds;
     let clear_after = (seconds > 0).then(|| Duration::from_secs(seconds.into()));
-    if self.clipboard.copy(&value, clear_after) {
+    if self.clipboard.copy(value, clear_after) {
       let text = if seconds > 0 { format!("{label} \u{b7} {}", cx.i18n.tr_arg("toast-clears-in", "seconds", seconds)) } else { label };
       self.show_toast(text, false);
     } else {
@@ -891,6 +916,7 @@ impl MainScreen {
   fn request_lock(&mut self, cx: &ScreenCtx) -> Option<Nav> {
     self.detail = None;
     self.dialog = None;
+    self.generator = None;
     if self.save.settled() {
       return Some(Nav::Lock(self.open.path.clone()));
     }
@@ -911,6 +937,12 @@ impl MainScreen {
     let mut bar = ui.new_child(UiBuilder::new().id_salt("main-top-bar").max_rect(rect).layout(Layout::right_to_left(Align::Center)));
     if icon_button(&mut bar, icon::LOCK, &tr("main-lock")).clicked() {
       actions.push(Action::Lock);
+    }
+    if icon_button(&mut bar, icon::GEAR_SIX, &tr("settings-open")).clicked() {
+      actions.push(Action::OpenSettings);
+    }
+    if icon_button(&mut bar, icon::DICE_FIVE, &tr("generator-open")).clicked() {
+      actions.push(Action::OpenGenerator);
     }
     self.save_status(&mut bar, cx, actions);
     let new_entry = ActionButton::new(tr("main-new-entry")).icon(icon::PLUS).primary();

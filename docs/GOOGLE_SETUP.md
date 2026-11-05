@@ -61,14 +61,16 @@ credentials still works, without the Drive actions.
 
 ## 6. Connect
 
-Unlock a vault and click **Connect Google Drive** at the bottom of the
-sidebar (this moves to **Settings → Google Drive** in a later version). A
-browser tab opens; sign in and approve. Then click **Upload to Drive** to
-copy the vault into a `KeepSave/` folder in your Drive.
+Open **Settings → Google Drive** (the gear icon) and click **Connect
+Drive**, or unlock a vault and click **Connect Google Drive** at the bottom
+of the sidebar. A browser tab opens; sign in and approve. Then click
+**Upload to Drive** in the vault's sidebar to copy it into a `KeepSave/`
+folder in your Drive.
 
 On another PC, choose **Import from Google Drive** on the welcome screen.
 
-To disconnect, right-click **On Google Drive** in the sidebar and choose
-**Disconnect Google Drive**. KeepSave revokes the token and removes it from
+To disconnect, click **Disconnect** in **Settings → Google Drive**, or
+right-click the Drive row in the sidebar and choose **Disconnect Google
+Drive**. The same Settings tab lists the linked vaults and unlinks them. KeepSave revokes the token and removes it from
 your OS credential store. You can also revoke access at
 <https://myaccount.google.com/permissions>.

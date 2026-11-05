@@ -1,6 +1,7 @@
-//! The password generator shown under the password field while editing.
+//! The password generator: under the password field while editing, and on
+//! its own from the top bar.
 
-use eframe::egui::{self, CornerRadius, Frame, Id, Margin, RichText, Slider, Stroke, Ui};
+use eframe::egui::{self, Align, Color32, CornerRadius, Frame, Id, Layout, Margin, Modal, RichText, Slider, Stroke, Ui, Vec2};
 use egui_phosphor::regular as icon;
 use keepsave_core::{
   ExposeSecret,
@@ -8,11 +9,21 @@ use keepsave_core::{
 };
 use zeroize::Zeroizing;
 
+use super::{Action, MainScreen, ScreenCtx};
 use crate::{
   i18n::I18n,
   theme,
   widgets::{ActionButton, field_label, icon_button, notice, strength_meter, text_field},
 };
+
+/// What the generator's button does with the password.
+#[derive(Clone, Copy)]
+pub enum Pick {
+  /// Puts it in the entry being edited.
+  Use,
+  /// Copies it to the clipboard.
+  Copy,
+}
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Mode {
@@ -64,7 +75,7 @@ impl Generator {
   }
 
   /// Draws the generator. Returns the value when the user picks it.
-  pub fn ui(&mut self, ui: &mut Ui, i18n: &I18n) -> Option<Zeroizing<String>> {
+  pub fn ui(&mut self, ui: &mut Ui, i18n: &I18n, pick: Pick) -> Option<Zeroizing<String>> {
     let tr = |key| i18n.tr(key);
     let before = (self.mode, self.charset.clone(), self.passphrase.clone());
     let mut picked = None;
@@ -130,7 +141,11 @@ impl Generator {
         }
         ui.add_space(2.0);
 
-        let use_it = ActionButton::new(tr("gen-use")).icon(icon::CHECK).enabled(!self.failed).full_width();
+        let (glyph, label) = match pick {
+          Pick::Use => (icon::CHECK, "gen-use"),
+          Pick::Copy => (icon::COPY, "gen-copy"),
+        };
+        let use_it = ActionButton::new(tr(label)).icon(glyph).enabled(!self.failed).full_width();
         if ui.add(use_it).clicked() {
           picked = Some(self.preview.clone());
         }
@@ -140,5 +155,39 @@ impl Generator {
       self.regenerate();
     }
     picked
+  }
+}
+
+/// The generator on its own, in a modal. Copying keeps it open, so another
+/// password is one click away.
+pub fn show_tool(ui: &Ui, screen: &mut MainScreen, cx: &ScreenCtx, actions: &mut Vec<Action>) {
+  let Some(generator) = &mut screen.generator else {
+    return;
+  };
+  let tr = |key| cx.i18n.tr(key);
+  let frame = Frame::new()
+    .fill(theme::GLASS_FILL_SOLID)
+    .stroke(Stroke::new(1.0, theme::GLASS_STROKE))
+    .corner_radius(CornerRadius::same(theme::RADIUS_PANEL))
+    .inner_margin(Margin::same(24));
+  let modal = Modal::new(Id::new("generator-tool")).frame(frame).backdrop_color(Color32::from_black_alpha(140)).show(ui.ctx(), |ui| {
+    ui.set_width(440.0);
+    let row = Vec2::new(ui.available_width(), 40.0);
+    ui.allocate_ui_with_layout(row, Layout::right_to_left(Align::Center), |ui| {
+      if icon_button(ui, icon::X, &tr("settings-close")).clicked() {
+        actions.push(Action::CloseGenerator);
+      }
+      ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
+        ui.label(RichText::new(icon::DICE_FIVE).font(theme::icon_font(22.0)).color(theme::ACCENT));
+        ui.label(RichText::new(tr("generator-title")).font(theme::heading(20.0)).color(theme::TEXT));
+      });
+    });
+    ui.add_space(8.0);
+    if let Some(value) = generator.ui(ui, cx.i18n, Pick::Copy) {
+      actions.push(Action::CopyGenerated(value));
+    }
+  });
+  if modal.backdrop_response.clicked() {
+    actions.push(Action::CloseGenerator);
   }
 }

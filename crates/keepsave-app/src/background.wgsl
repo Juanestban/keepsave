@@ -6,6 +6,11 @@ struct Uniforms {
     time: f32,
     // 1.0 when the target is an sRGB format and expects linear output.
     srgb_target: f32,
+    // 1.0 over the OS backdrop: the base color becomes a translucent tint.
+    transparent: f32,
+    _pad0: f32,
+    _pad1: f32,
+    _pad2: f32,
 };
 
 @group(0) @binding(0) var<uniform> u: Uniforms;
@@ -34,7 +39,8 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     p.x *= aspect;
     let t = u.time * 0.06;
 
-    var color = vec3<f32>(0.035, 0.039, 0.063);
+    let base = vec3<f32>(0.035, 0.039, 0.063);
+    var color = base;
     color += vec3<f32>(0.30, 0.30, 0.95) * 0.55 * blob(p,
         vec2<f32>(aspect * (0.22 + 0.12 * sin(t * 1.3)), 0.28 + 0.14 * cos(t * 1.1)), 0.42);
     color += vec3<f32>(0.08, 0.62, 0.74) * 0.40 * blob(p,
@@ -49,8 +55,16 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     color *= 1.0 - 0.55 * dot(centered, centered);
 
     color += (hash(position.xy) - 0.5) / 255.0;
+    color = max(color, vec3<f32>(0.0));
     if u.srgb_target > 0.5 {
-        color = pow(max(color, vec3<f32>(0.0)), vec3<f32>(2.2));
+        color = pow(color, vec3<f32>(2.2));
     }
-    return vec4<f32>(color, 1.0);
+    if u.transparent < 0.5 {
+        return vec4<f32>(color, 1.0);
+    }
+    // Premultiplied: a light tint where there is no glow, so the backdrop
+    // shows through, and more opacity where the blobs are bright.
+    let glow = max(color.r, max(color.g, color.b));
+    let alpha = clamp(0.5 + glow * 1.4, 0.0, 1.0);
+    return vec4<f32>(min(color, vec3<f32>(alpha)), alpha);
 }

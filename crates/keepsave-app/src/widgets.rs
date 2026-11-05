@@ -451,3 +451,27 @@ pub fn notice(ui: &mut Ui, icon: &str, text: &str, color: Color32) {
     ui.label(RichText::new(text).small().color(color));
   });
 }
+
+/// An on/off switch with a sliding knob.
+pub fn toggle(ui: &mut Ui, on: &mut bool, enabled: bool, label: &str) -> Response {
+  let size = Vec2::new(40.0, 22.0);
+  let sense = if enabled { Sense::click() } else { Sense::hover() };
+  let (rect, mut response) = ui.allocate_exact_size(size, sense);
+  if response.clicked() {
+    *on = !*on;
+    response.mark_changed();
+  }
+  response.widget_info(|| WidgetInfo::selected(WidgetType::Checkbox, enabled, *on, label));
+
+  let t = ui.ctx().animate_bool_with_time(response.id, *on, HOVER_TIME * 1.5);
+  let hover = ui.ctx().animate_bool_with_time(response.id.with("hover"), enabled && response.hovered(), HOVER_TIME);
+  let dim = if enabled { 1.0 } else { 0.4 };
+  let track = theme::GLASS_FILL_ACTIVE.lerp_to_gamma(theme::ACCENT, t);
+  let radius = CornerRadius::same((size.y / 2.0) as u8);
+  ui.painter().rect(rect, radius, track.gamma_multiply(dim), Stroke::new(1.0, theme::GLASS_STROKE.gamma_multiply(dim)), StrokeKind::Inside);
+  let knob_radius = size.y / 2.0 - 3.0 + hover;
+  let x = egui::lerp((rect.left() + size.y / 2.0)..=(rect.right() - size.y / 2.0), t);
+  let knob = theme::TEXT_MUTED.lerp_to_gamma(theme::ON_ACCENT, t);
+  ui.painter().circle_filled(egui::pos2(x, rect.center().y), knob_radius, knob.gamma_multiply(dim));
+  if enabled { response.on_hover_cursor(egui::CursorIcon::PointingHand) } else { response }
+}

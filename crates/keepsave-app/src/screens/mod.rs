@@ -3,6 +3,7 @@
 mod create;
 mod drive_import;
 mod main;
+mod settings;
 mod unlock;
 mod welcome;
 
@@ -16,6 +17,7 @@ use keepsave_sync::RemoteFile;
 pub use create::CreateVault;
 pub use drive_import::DriveImport;
 pub use main::MainScreen;
+pub use settings::{Request as SettingsRequest, Settings, SettingsCtx};
 pub use unlock::Unlock;
 pub use welcome::Welcome;
 
@@ -37,6 +39,8 @@ pub struct ScreenCtx<'a> {
   /// The OS went to sleep or locked the session since the last frame.
   pub os_lock: bool,
   pub drive: &'a DriveState,
+  /// Settings is open on top, so the screen leaves the keyboard alone.
+  pub overlay: bool,
 }
 
 /// A request from a screen to the app.
@@ -49,8 +53,11 @@ pub enum Nav {
   },
   Opened(Box<OpenVault>),
   Lock(PathBuf),
-  SetLanguage(Language),
+  /// `None` follows the OS.
+  SetLanguage(Option<Language>),
   ForgetVault(PathBuf),
+  ForgetAllVaults,
+  OpenSettings,
   ConnectDrive,
   CancelDrive,
   DisconnectDrive,

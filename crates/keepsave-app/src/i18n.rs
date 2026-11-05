@@ -13,13 +13,20 @@ pub enum Language {
 }
 
 impl Language {
-  #[cfg(test)]
   pub const ALL: [Self; 2] = [Self::Spanish, Self::English];
 
   pub fn code(self) -> &'static str {
     match self {
       Self::English => "en",
       Self::Spanish => "es",
+    }
+  }
+
+  /// The key of the language's own name, e.g. "Español".
+  pub fn name_key(self) -> &'static str {
+    match self {
+      Self::English => "language-en",
+      Self::Spanish => "language-es",
     }
   }
 
@@ -47,7 +54,6 @@ impl Language {
 }
 
 pub struct I18n {
-  language: Language,
   bundle: FluentBundle<FluentResource>,
   /// English, for keys missing from the active language.
   fallback: FluentBundle<FluentResource>,
@@ -55,11 +61,7 @@ pub struct I18n {
 
 impl I18n {
   pub fn new(language: Language) -> Self {
-    Self { language, bundle: bundle_for(language), fallback: bundle_for(Language::English) }
-  }
-
-  pub fn language(&self) -> Language {
-    self.language
+    Self { bundle: bundle_for(language), fallback: bundle_for(Language::English) }
   }
 
   pub fn tr(&self, key: &str) -> String {

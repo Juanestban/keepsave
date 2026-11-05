@@ -14,8 +14,9 @@ with a minimalist dark "liquid glass" UI and Google Drive sync.**
 
 > [!WARNING]
 > KeepSave is in **early development**. Local vaults work end to end (groups,
-> entries, search, autosave, auto-lock), but Google Drive sync isn't there yet
-> and the code hasn't been audited. Keep a backup of any vault you use with it.
+> entries, search, autosave, auto-lock, settings). Google Drive sync is
+> written but still awaiting a check with a real account, and the code hasn't
+> been audited. Keep a backup of any vault you use with it.
 > See [ROADMAP.md](ROADMAP.md) for the current status.
 
 ## Why KeepSave?
@@ -53,7 +54,9 @@ adds:
 | Auto-lock (inactivity, minimize, OS sleep / session lock) | ✅ Done |
 | Google Drive connection, upload and import on a new PC | 🟨 M4 (awaiting a real-account check) |
 | Bidirectional sync, merge and versioned backups | 🟨 M5 (awaiting a real-account check) |
-| Settings, optional Windows 11 Acrylic/Mica, portable `.exe` | ⬜ M6 |
+| Settings, standalone generator, About | ✅ Done |
+| Optional Windows 11 Mica backdrop | ✅ Done |
+| Portable release `.exe` | 🟨 M6 (awaiting a KeePassXC check) |
 
 Planned after v1: auto-type, attachments, key files, Windows Hello unlock,
 entry templates, CSV import, an MSI installer and auto-update.
@@ -143,12 +146,12 @@ a local-only password manager, with the Drive actions hidden.
   memory.
 - **Secrets in memory:** passwords are held in `secrecy`/`zeroize` types and
   wiped when dropped. They are never logged and never printed for debugging.
-- **Clipboard:** copied secrets are cleared after 15 seconds, and on lock or
-  exit, but only if the clipboard still holds them. On Windows they are kept
+- **Clipboard:** copied secrets are cleared after 15 seconds (configurable
+  in Settings), and on lock or exit, but only if the clipboard still holds them. On Windows they are kept
   out of the clipboard history and the cloud clipboard.
 - **Auto-lock:** after 5 minutes of inactivity, when the window is minimized,
-  and when the OS goes to sleep or the session is locked. Pending changes are
-  saved first.
+  and when the OS goes to sleep or the session is locked; each can be changed
+  in Settings → Security. Pending changes are saved first.
 - **Links:** only `http` and `https` URLs are opened from an entry.
 - **Sync:** before KeepSave overwrites the copy on Drive it keeps the old one
   in `KeepSave/backups/` (last 10 per vault). A Drive copy with a different
@@ -183,7 +186,7 @@ KeepSave follows KeePass:
 | What | Where (Windows) |
 | --- | --- |
 | Vaults | Wherever you choose (`.kdbx` files) |
-| Settings | `%APPDATA%\KeepSave\config.toml` (lock and clipboard timers can be changed here until the Settings screen lands) |
+| Settings | `%APPDATA%\KeepSave\config.toml` (edited from the Settings screen) |
 | Google refresh token | Windows Credential Manager |
 | Drive copies | A visible `KeepSave/` folder in your Drive, backups in `KeepSave/backups/` (last 10) |
 

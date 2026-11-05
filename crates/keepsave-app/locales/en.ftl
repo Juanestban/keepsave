@@ -217,3 +217,63 @@ toast-drive-merged =
     }
 drive-error-missing = This vault is no longer on Google Drive. Unlink it, then upload it again.
 drive-error-password = The copy on Google Drive has a different master password, so it wasn't touched.
+
+## Settings
+
+settings-open = Settings
+settings-title = Settings
+settings-close = Close
+settings-tab-general = General
+settings-tab-security = Security
+settings-tab-drive = Google Drive
+settings-tab-language = Language
+settings-tab-appearance = Appearance
+settings-tab-about = About
+settings-config-error = Your settings couldn't be saved: { $details }
+settings-recent = Recent vaults
+settings-recent-hint = Removing a vault from this list doesn't delete its file.
+settings-recent-empty = No recent vaults.
+settings-recent-remove = Remove from the list
+settings-recent-clear = Clear the list
+settings-never = Never
+settings-minutes = { $count } min
+settings-seconds = { $count } s
+settings-lock-after = Lock after inactivity
+settings-lock-after-hint = Without mouse or keyboard input for this long.
+settings-lock-minimize = Lock when the window is minimized
+settings-lock-sleep = Lock when the PC sleeps or the session locks
+settings-lock-sleep-windows = Only available on Windows for now.
+settings-clipboard-clear = Clear copied secrets after
+settings-clipboard-clear-hint = Only if the clipboard still holds what KeepSave copied.
+settings-clipboard-keep = Never
+settings-drive-connection = Connection
+settings-drive-connected = Connected to Google Drive
+settings-drive-disconnected = Not connected
+settings-drive-disconnect = Disconnect
+settings-drive-links = Linked vaults
+settings-drive-links-empty = No vault is linked yet. Open a vault and choose “Upload to Drive” in its sidebar.
+settings-drive-unlink = Unlink this vault
+settings-language-system = System ({ $language })
+settings-animated-background = Animated background
+settings-animated-background-hint = When off, the background stays still and uses less power.
+settings-transparency = System transparency
+settings-transparency-hint = Lets the Windows 11 Mica backdrop show through the window.
+settings-transparency-unsupported = Needs Windows 11 version 22H2 or later.
+settings-restart = Restart KeepSave to apply this change.
+
+## About
+
+about-version = Version { $version }
+about-license = Free software under the MIT or Apache 2.0 license.
+about-repository = Source code on GitHub
+about-credits = Credits
+about-credit-inter = Inter typeface by Rasmus Andersson, under the SIL Open Font License 1.1.
+about-credit-phosphor = Phosphor icons, under the MIT License.
+about-credit-eff = Passphrase wordlist by the Electronic Frontier Foundation, under CC BY 3.0.
+about-eff-link = EFF wordlists
+
+## Password generator
+
+generator-open = Password generator
+generator-title = Password generator
+gen-copy = Copy

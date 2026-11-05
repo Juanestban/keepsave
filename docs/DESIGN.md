@@ -78,8 +78,8 @@ encryption leaks metadata.
 
 Implementation notes:
 
-- Until the Settings screen exists (M6), the timers and toggles above are
-  read from `config.toml` (`lock_after_minutes`, `lock_on_minimize`,
+- The timers and toggles above are set under Settings → Security and kept
+  in `config.toml` (`lock_after_minutes`, `lock_on_minimize`,
   `lock_on_os_sleep`, `clipboard_clear_seconds`).
 - Copied secrets are excluded from the Windows clipboard history and cloud
   clipboard. The clipboard is also cleared on lock and on exit, again only if
@@ -189,10 +189,11 @@ Implementation (M5):
   the same second can race. The loser's version is still in
   `KeepSave/backups/`.
 
-### Drive in the UI before Settings (M4)
+### Drive in the UI
 
-Until the Settings screen exists, Drive lives in the main screen's sidebar,
-above the recycle bin:
+Settings → Google Drive manages the connection and lists every linked
+vault. Day-to-day, Drive also lives in the main screen's sidebar, above the
+recycle bin:
 
 - **Not connected:** "Connect Google Drive". While the browser is open, a
   spinner and a Cancel action.
@@ -237,8 +238,19 @@ branding or assets from any existing product.
     on the top edge, soft shadow.
   - Because the background is already blurred, the panels read as glass with
     no real backdrop blur.
-- **Optional:** Windows 11 Acrylic/Mica through `window-vibrancy`, as the
-  "System transparency" toggle in Settings.
+- **Optional:** the Windows 11 Mica backdrop, as the "System transparency"
+  toggle in Settings → Appearance. Implementation (M6):
+  - Set through DWM directly (`DwmSetWindowAttribute` with
+    `DWMWA_SYSTEMBACKDROP_TYPE = DWMSBT_MAINWINDOW`, plus dark mode), with
+    the `windows-sys` crate already in use, instead of `window-vibrancy`.
+  - Needs Windows 11 22H2 (build 22621) or later; elsewhere the toggle is
+    disabled with a note.
+  - Applied at startup only, so changing it asks for a restart: the window
+    is created transparent and wgpu runs on DX12 with a DirectComposition
+    swapchain (`DxgiFromVisual`), the only Windows swapchain that composes
+    with alpha.
+  - With it on, the shader keeps the blobs but lets the backdrop show
+    through instead of painting the opaque base color.
 - **Future:** real in-app backdrop blur (framebuffer copy and blur pass), only
   if the simulated look falls short.
 - Renderer: eframe **wgpu** backend.
@@ -247,8 +259,9 @@ branding or assets from any existing product.
 
 - Spanish and English from v1. Fluent `.ftl` files loaded with
   `fluent-bundle`.
-- Default language from the OS (`sys-locale`), with a selector in Settings.
-  Until Settings exists, the Welcome screen has an Español | English switch.
+- Default language from the OS (`sys-locale`), with a selector in
+  Settings → Language: System, Español, English. "System" stores no
+  language in `config.toml`, so the OS choice applies again.
 - Font: Inter (Regular and SemiBold, SIL OFL 1.1), embedded.
 - Icons: Phosphor (`egui-phosphor`), drawn from a font family that holds only
   Phosphor, because Inter has its own glyphs in part of the same private-use
@@ -291,7 +304,28 @@ branding or assets from any existing product.
      the error.
    - Deleting moves to the recycle bin; deleting from the bin and emptying it
      ask for confirmation. Entries in the bin can be restored to the root.
-4. **Settings**: General, Security, Google Drive, Language, Appearance.
+4. **Settings** (M6): a modal over whatever screen is showing, so an open
+   vault stays open beneath it. A gear button opens it: top right on the
+   screens before unlocking, and in the main top bar. Esc or a click
+   outside closes it. Every change applies and is saved at once; there is
+   no Save button. Tabs on the left:
+   - **General:** recent vaults (remove one or clear the list). If
+     `config.toml` can't be written, the error shows here.
+   - **Security:** auto-lock after (off, 1, 2, 5, 10, 15, 30 or 60 min),
+     lock on minimize, lock on OS sleep or session lock, clear the
+     clipboard after (off, 10, 15, 30, 60 or 90 s).
+   - **Google Drive:** connection state with Connect, Cancel or
+     Disconnect, and the linked vaults (name on Drive, local path, pending
+     upload) with Unlink.
+   - **Language:** System, Español, English.
+   - **Appearance:** animated background (off draws a still frame and stops
+     the constant repaint), system transparency (see Q8).
+   - **About:** version, licenses, repository link and third-party credits:
+     Inter (SIL OFL 1.1), Phosphor icons (MIT) and the EFF large wordlist
+     (CC BY 3.0).
+5. **Password generator** (M6): a button in the main top bar opens the
+   generator (Q18) in a modal. Its action copies the password, with the
+   same auto-clear as any other copied secret.
 
 ### Q18 — Password generator
 
@@ -304,7 +338,7 @@ branding or assets from any existing product.
   separator.
 - Entropy meter (bits). Randomness from `OsRng`.
 - Available inline while editing an entry (a panel under the password
-  field, M3) and as a standalone tool (M6).
+  field, M3) and as a standalone tool from the main top bar (M6).
 
 ### Q19 — Keyboard shortcuts (KeePass-compatible)
 
