@@ -256,10 +256,6 @@ settings-drive-unlink = Unlink this vault
 settings-language-system = System ({ $language })
 settings-animated-background = Animated background
 settings-animated-background-hint = When off, the background stays still and uses less power.
-settings-transparency = System transparency
-settings-transparency-hint = Lets the Windows 11 Mica backdrop show through the window.
-settings-transparency-unsupported = Needs Windows 11 version 22H2 or later.
-settings-restart = Restart KeepSave to apply this change.
 
 ## About
 

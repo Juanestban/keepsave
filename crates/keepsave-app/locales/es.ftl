@@ -256,10 +256,6 @@ settings-drive-unlink = Desvincular esta bóveda
 settings-language-system = Sistema ({ $language })
 settings-animated-background = Fondo animado
 settings-animated-background-hint = Si está apagado, el fondo queda quieto y gasta menos energía.
-settings-transparency = Transparencia del sistema
-settings-transparency-hint = Deja ver el fondo Mica de Windows 11 a través de la ventana.
-settings-transparency-unsupported = Requiere Windows 11 versión 22H2 o posterior.
-settings-restart = Reinicia KeepSave para aplicar este cambio.
 
 ## About
 

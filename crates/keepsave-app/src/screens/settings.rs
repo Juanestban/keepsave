@@ -10,7 +10,6 @@ use egui_phosphor::regular as icon;
 
 use super::Nav;
 use crate::{
-  backdrop,
   config::Config,
   drive::DriveState,
   i18n::{I18n, Language},
@@ -59,8 +58,6 @@ pub struct SettingsCtx<'a> {
   pub drive: &'a DriveState,
   /// Why `config.toml` couldn't be written, if it couldn't.
   pub config_error: Option<&'a str>,
-  /// The backdrop is on in this run.
-  pub transparent: bool,
 }
 
 /// What the user asked of the app from Settings.
@@ -265,14 +262,6 @@ fn appearance(ui: &mut Ui, cx: &SettingsCtx, config: &mut Config) {
   setting(ui, &tr("settings-animated-background"), Some(&tr("settings-animated-background-hint")), |ui| {
     toggle(ui, &mut config.animated_background, true, &tr("settings-animated-background"));
   });
-  let supported = backdrop::supported();
-  let hint = if supported { tr("settings-transparency-hint") } else { tr("settings-transparency-unsupported") };
-  setting(ui, &tr("settings-transparency"), Some(&hint), |ui| {
-    toggle(ui, &mut config.system_transparency, supported, &tr("settings-transparency"));
-  });
-  if supported && config.system_transparency != cx.transparent {
-    notice(ui, icon::ARROWS_CLOCKWISE, &tr("settings-restart"), theme::WARNING);
-  }
 }
 
 fn about(ui: &mut Ui, cx: &SettingsCtx) {

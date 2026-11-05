@@ -57,7 +57,6 @@ adds:
 | Google Drive connection, upload and import on a new PC | 🟨 M4 (awaiting a real-account check) |
 | Bidirectional sync, merge and versioned backups | 🟨 M5 (awaiting a real-account check) |
 | Settings, standalone generator, About | ✅ Done |
-| Optional Windows 11 Mica backdrop | ✅ Done |
 | Portable release `.exe` | 🟨 M6 (awaiting a KeePassXC check) |
 
 Planned after v1: auto-type, attachments, key files, Windows Hello unlock,

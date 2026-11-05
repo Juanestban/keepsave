@@ -238,19 +238,11 @@ branding or assets from any existing product.
     on the top edge, soft shadow.
   - Because the background is already blurred, the panels read as glass with
     no real backdrop blur.
-- **Optional:** the Windows 11 Mica backdrop, as the "System transparency"
-  toggle in Settings → Appearance. Implementation (M6):
-  - Set through DWM directly (`DwmSetWindowAttribute` with
-    `DWMWA_SYSTEMBACKDROP_TYPE = DWMSBT_MAINWINDOW`, plus dark mode), with
-    the `windows-sys` crate already in use, instead of `window-vibrancy`.
-  - Needs Windows 11 22H2 (build 22621) or later; elsewhere the toggle is
-    disabled with a note.
-  - Applied at startup only, so changing it asks for a restart: the window
-    is created transparent and wgpu runs on DX12 with a DirectComposition
-    swapchain (`DxgiFromVisual`), the only Windows swapchain that composes
-    with alpha.
-  - With it on, the shader keeps the blobs but lets the backdrop show
-    through instead of painting the opaque base color.
+- **Dropped in M6:** the optional Windows 11 Mica backdrop ("System
+  transparency"). It needed a transparent window on DX12 with a
+  DirectComposition swapchain, applied only at startup, and it rendered
+  wrongly on the real screen, so it was removed rather than shipped broken.
+  The simulated glass is the only look.
 - **Future:** real in-app backdrop blur (framebuffer copy and blur pass), only
   if the simulated look falls short.
 - Renderer: eframe **wgpu** backend.
@@ -319,7 +311,7 @@ branding or assets from any existing product.
      upload) with Unlink.
    - **Language:** System, Español, English.
    - **Appearance:** animated background (off draws a still frame and stops
-     the constant repaint), system transparency (see Q8).
+     the constant repaint).
    - **About:** version, licenses, repository link and third-party credits:
      Inter (SIL OFL 1.1), Phosphor icons (MIT) and the EFF large wordlist
      (CC BY 3.0).

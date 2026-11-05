@@ -67,7 +67,7 @@ Code complete; waiting for a check with two PCs (or two vault copies) on a real 
 ## M6 — Settings, polish, release 🟨
 
 - [x] Settings screen (General, Security, Google Drive, Language, Appearance)
-- [x] Optional Windows 11 Mica (through DWM directly instead of `window-vibrancy`)
+- [x] ~~Optional Windows 11 Mica~~ dropped: it rendered wrongly on screen (see DESIGN.md Q8)
 - [x] Animation polish and performance pass (still background option, no repaint while minimized)
 - [x] Release profile (LTO) and portable `.exe` (about 20 MB, assets embedded)
 - [ ] Manual check: vault opens in KeePassXC

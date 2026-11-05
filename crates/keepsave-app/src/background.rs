@@ -24,34 +24,26 @@ struct Resources {
 
 pub struct Background {
   gpu: bool,
-  /// The window is transparent over the OS backdrop.
-  transparent: bool,
 }
 
 impl Background {
-  pub fn new(cc: &eframe::CreationContext<'_>, transparent: bool) -> Self {
+  pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
     let Some(render_state) = cc.wgpu_render_state.as_ref() else {
-      return Self { gpu: false, transparent: false };
+      return Self { gpu: false };
     };
     let resources = Resources::new(&render_state.device, render_state.target_format);
     render_state.renderer.write().callback_resources.insert(resources);
-    Self { gpu: true, transparent }
-  }
-
-  pub fn is_transparent(&self) -> bool {
-    self.transparent
+    Self { gpu: true }
   }
 
   /// `animated` off draws a still frame and only repaints on input.
   pub fn paint(&self, ui: &egui::Ui, animated: bool) {
     let rect = ui.ctx().content_rect();
     let painter = ui.painter();
-    if !self.transparent {
-      painter.rect_filled(rect, 0.0, theme::BASE);
-    }
+    painter.rect_filled(rect, 0.0, theme::BASE);
     if self.gpu {
       let time = if animated { ui.input(|input| input.time) as f32 } else { 0.0 };
-      painter.add(egui_wgpu::Callback::new_paint_callback(rect, BackgroundCallback { time, transparent: self.transparent }));
+      painter.add(egui_wgpu::Callback::new_paint_callback(rect, BackgroundCallback { time }));
     } else {
       paint_fallback(painter, rect);
     }
@@ -131,13 +123,11 @@ impl Resources {
   }
 }
 
-/// `vec2 resolution, f32 time, f32 srgb_target, f32 transparent`, padded
-/// to 16-byte alignment.
-const UNIFORMS_SIZE: u64 = 32;
+/// `vec2 resolution, f32 time, f32 srgb_target`.
+const UNIFORMS_SIZE: u64 = 16;
 
 struct BackgroundCallback {
   time: f32,
-  transparent: bool,
 }
 
 impl CallbackTrait for BackgroundCallback {
@@ -151,8 +141,7 @@ impl CallbackTrait for BackgroundCallback {
   ) -> Vec<wgpu::CommandBuffer> {
     if let Some(resources) = resources.get::<Resources>() {
       let [width, height] = screen.size_in_pixels;
-      let flag = |on: bool| if on { 1.0 } else { 0.0 };
-      let values = [width as f32, height as f32, self.time, flag(resources.srgb_target), flag(self.transparent), 0.0, 0.0, 0.0];
+      let values = [width as f32, height as f32, self.time, if resources.srgb_target { 1.0 } else { 0.0 }];
       let bytes: Vec<u8> = values.iter().flat_map(|value| value.to_ne_bytes()).collect();
       queue.write_buffer(&resources.uniforms, 0, &bytes);
     }

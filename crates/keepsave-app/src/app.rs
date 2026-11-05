@@ -7,7 +7,6 @@ use egui_phosphor::regular as icon;
 use tokio::task::AbortHandle;
 
 use crate::{
-  backdrop,
   background::Background,
   config::Config,
   drive::{self, DriveState},
@@ -50,12 +49,10 @@ pub struct KeepSaveApp {
 }
 
 impl KeepSaveApp {
-  /// `transparent`: the window was created for the OS backdrop.
-  pub fn new(cc: &eframe::CreationContext<'_>, config: Config, config_path: Option<PathBuf>, transparent: bool) -> Self {
+  pub fn new(cc: &eframe::CreationContext<'_>, config: Config, config_path: Option<PathBuf>) -> Self {
     fonts::install(&cc.egui_ctx);
     theme::apply(&cc.egui_ctx);
     session::start(cc.egui_ctx.clone());
-    let transparent = transparent && backdrop::apply(cc);
 
     let language = config.language.as_deref().and_then(Language::from_code).unwrap_or_else(Language::detect);
     let screen = if config.recent_vaults.is_empty() { Screen::Welcome(Welcome) } else { Screen::Unlock(Unlock::new(None, &config)) };
@@ -67,7 +64,7 @@ impl KeepSaveApp {
       connecting: None,
       i18n,
       worker: Worker::new(cc.egui_ctx.clone()).expect("start the background runtime"),
-      background: Background::new(cc, transparent),
+      background: Background::new(cc),
       config,
       config_path,
       screen,
@@ -209,8 +206,7 @@ impl KeepSaveApp {
       return None;
     };
     let before = self.config.clone();
-    let cx =
-      SettingsCtx { i18n: &self.i18n, drive: &self.drive, config_error: self.config_error.as_deref(), transparent: self.background.is_transparent() };
+    let cx = SettingsCtx { i18n: &self.i18n, drive: &self.drive, config_error: self.config_error.as_deref() };
     let request = settings.show(ctx, &cx, &mut self.config);
     if self.config != before {
       self.save_config();
@@ -314,6 +310,6 @@ impl eframe::App for KeepSaveApp {
   }
 
   fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
-    if self.background.is_transparent() { [0.0; 4] } else { theme::BASE.to_normalized_gamma_f32() }
+    theme::BASE.to_normalized_gamma_f32()
   }
 }
