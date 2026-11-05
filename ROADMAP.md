@@ -73,6 +73,7 @@ Code complete; waiting for a check with two PCs (or two vault copies) on a real 
 - [ ] Manual check: vault opens in KeePassXC
 - [x] About screen with EFF wordlist attribution (CC BY 3.0)
 - [x] Standalone password generator from the main top bar
+- [x] App icon (in the `.exe` and the window) and version 1.0.0
 
 ## Post-v1 backlog
 

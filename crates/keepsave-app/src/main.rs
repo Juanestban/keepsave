@@ -31,7 +31,8 @@ fn main() -> eframe::Result {
     .with_title("KeepSave")
     .with_inner_size([1100.0, 720.0])
     .with_min_inner_size([720.0, 560.0])
-    .with_transparent(transparent);
+    .with_transparent(transparent)
+    .with_icon(icon());
   let options = eframe::NativeOptions {
     renderer: eframe::Renderer::Wgpu,
     viewport,
@@ -39,4 +40,10 @@ fn main() -> eframe::Result {
     ..Default::default()
   };
   eframe::run_native("KeepSave", options, Box::new(move |cc| Ok(Box::new(app::KeepSaveApp::new(cc, config, config_path, transparent)))))
+}
+
+/// The window and taskbar icon, drawn by `scripts/make_icon.py`.
+fn icon() -> egui::IconData {
+  const SIZE: u32 = 128;
+  egui::IconData { rgba: include_bytes!("../assets/icon/keepsave-128.rgba").to_vec(), width: SIZE, height: SIZE }
 }

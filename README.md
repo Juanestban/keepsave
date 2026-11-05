@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="crates/keepsave-app/assets/icon/keepsave.png" alt="KeepSave icon" width="96">
+
 # KeepSave
 
 **A personal, KeePass-compatible password manager written in native Rust,
@@ -63,9 +65,10 @@ entry templates, CSV import, an MSI installer and auto-update.
 
 ## Installation
 
-There are no prebuilt releases yet. A portable Windows `.exe` will be
-published on the [Releases](https://github.com/Juanestban/keepsave/releases)
-page when v1 is ready (milestone M6). Until then, build from source.
+Version 1.0.0 is a single portable Windows `.exe` with everything embedded.
+Download it from the [Releases](https://github.com/Juanestban/keepsave/releases)
+page when it is published there, or build it from source as below. It isn't
+code-signed yet, so Windows SmartScreen warns the first time you run it.
 
 ### Requirements (all platforms)
 
@@ -76,7 +79,8 @@ page when v1 is ready (milestone M6). Until then, build from source.
 ### Windows (primary platform)
 
 1. Install the **Visual Studio Build Tools** with the *Desktop development
-   with C++* workload. Rust needs them for linking on Windows.
+   with C++* workload. Rust needs them for linking on Windows, and the
+   Windows SDK they include provides `rc.exe`, which embeds the app icon.
 2. Install Rust from <https://rustup.rs/> (pick the default
    `x86_64-pc-windows-msvc` toolchain).
 3. Clone and build:
@@ -197,6 +201,7 @@ crates/keepsave-core   # vault model, KDBX I/O, merge, generator (no UI, no netw
 crates/keepsave-sync   # Google OAuth and the Drive REST client
 crates/keepsave-app    # eframe desktop app: theme, animations, i18n, screens
 docs/                  # design decisions and the Google setup guide
+scripts/make_icon.py   # draws the app icon (Python standard library only)
 ```
 
 The architecture and the reasoning behind every decision are in

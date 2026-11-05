@@ -382,7 +382,14 @@ crates/
 
 ### Q20 — Packaging
 
-- v1: a single portable `.exe`, assets embedded, release profile with LTO.
+- v1 (1.0.0): a single portable `.exe`, assets embedded, release profile
+  with LTO.
+- **Icon:** an original design: a rounded square with the accent-to-violet
+  gradient of the theme, a glass highlight, and a light keyhole. It is drawn
+  by `scripts/make_icon.py` (Python standard library only), which writes
+  `assets/icon/keepsave.ico` (16–256 px) and a raw 128 px RGBA copy. The
+  `.ico` goes into the `.exe` resources with `winresource` (with the
+  version info); the RGBA copy is the window and taskbar icon.
 - Later: MSI installer (`cargo-wix`) and auto-update.
 - No code signing yet, so SmartScreen warns on first run.
 
