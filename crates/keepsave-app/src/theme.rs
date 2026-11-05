@@ -35,6 +35,8 @@ const fn black(alpha: u8) -> Color32 {
 pub const GLASS_FILL: Color32 = white(14);
 pub const GLASS_FILL_HOVER: Color32 = white(26);
 pub const GLASS_FILL_ACTIVE: Color32 = white(36);
+/// Nearly opaque, for panels that float over other content.
+pub const GLASS_FILL_SOLID: Color32 = Color32::from_rgba_premultiplied(21, 23, 34, 242);
 pub const GLASS_STROKE: Color32 = white(34);
 /// The specular line along a panel's top edge.
 pub const GLASS_HIGHLIGHT: Color32 = white(110);
@@ -71,6 +73,10 @@ pub fn apply(ctx: &egui::Context) {
         spacing.button_padding = Vec2::new(14.0, 8.0);
         spacing.interact_size.y = 32.0;
 
+        // Secrets must reach the clipboard only through the copy actions,
+        // which clear it again.
+        style.interaction.selectable_labels = false;
+
         let visuals = &mut style.visuals;
         visuals.dark_mode = true;
         visuals.override_text_color = None;
@@ -84,6 +90,7 @@ pub fn apply(ctx: &egui::Context) {
         visuals.selection.bg_fill = ACCENT.gamma_multiply(0.35);
         visuals.selection.stroke = Stroke::new(1.0, ACCENT);
         visuals.text_cursor.stroke = Stroke::new(2.0, ACCENT);
+        visuals.slider_trailing_fill = true;
         visuals.error_fg_color = DANGER;
         visuals.warn_fg_color = WARNING;
 

@@ -76,6 +76,26 @@ encryption leaks metadata.
 | Clipboard auto-clear (only if it still holds our value) | 15 s | yes |
 | Passwords masked by default, reveal toggle | on | — |
 
+Implementation notes:
+
+- Until the Settings screen exists (M6), the timers and toggles above are
+  read from `config.toml` (`lock_after_minutes`, `lock_on_minimize`,
+  `lock_on_os_sleep`, `clipboard_clear_seconds`).
+- Copied secrets are excluded from the Windows clipboard history and cloud
+  clipboard. The clipboard is also cleared on lock and on exit, again only if
+  it still holds our value.
+- OS sleep and session lock are detected on Windows with a hidden window
+  that listens for `WM_POWERBROADCAST` and `WM_WTSSESSION_CHANGE`. Other
+  platforms rely on the inactivity timer for now.
+- Locking with unsaved changes saves first. If that save fails, the vault
+  stays unlocked and shows the error, because losing data is worse. An entry
+  still being edited is discarded on lock: the lock must not wait for the
+  user.
+- Closing the window with unsaved changes also saves first; if the save
+  fails, the user chooses between staying and closing without saving.
+- Labels are not selectable, so secrets only reach the clipboard through the
+  copy actions, which auto-clear.
+
 ### Q12 — Secrets vs. settings
 
 - The Google refresh token goes in the OS credential store (crate `keyring`:
@@ -176,6 +196,26 @@ branding or assets from any existing product.
    opens here when there are recent vaults, otherwise on Welcome.
 3. **Main**: glass sidebar with groups, entry list in the center, detail panel
    that slides in from the right, and a persistent search bar (`Ctrl+F`).
+   - **Sidebar:** vault name, the root group, its child groups (one level),
+     and the recycle bin pinned at the bottom. A right-click menu renames or
+     deletes a group, or empties the bin.
+   - **Top bar** (over the list): search, New entry, save status, Lock.
+   - **List:** title and username per row, with copy buttons on hover. While
+     searching, results span all groups (except the bin) and show their group.
+     The root lists its own entries; any other group, and the bin, also list
+     the entries of deeper groups (which the sidebar doesn't show), labeled
+     with their group.
+   - **Detail:** view mode with copy, reveal and open-URL actions, tags,
+     custom fields and history with restore; edit mode with every field, the
+     group, custom fields (plain or protected) and the inline generator.
+     Leaving an edited entry asks before discarding changes.
+   - On narrow windows the detail panel overlaps the list instead of
+     squeezing it.
+   - **Autosave:** every change is saved on the worker about 1 s after the
+     last edit (`Ctrl+S` saves at once). The top bar shows Saved, Saving or
+     the error.
+   - Deleting moves to the recycle bin; deleting from the bin and emptying it
+     ask for confirmation. Entries in the bin can be restored to the root.
 4. **Settings**: General, Security, Google Drive, Language, Appearance.
 
 ### Q18 — Password generator
@@ -188,7 +228,8 @@ branding or assets from any existing product.
 - **Passphrase mode:** EFF large wordlist, default 5 words, configurable
   separator.
 - Entropy meter (bits). Randomness from `OsRng`.
-- Available inline while editing an entry and as a standalone tool.
+- Available inline while editing an entry (a panel under the password
+  field, M3) and as a standalone tool (M6).
 
 ### Q19 — Keyboard shortcuts (KeePass-compatible)
 
@@ -201,6 +242,14 @@ branding or assets from any existing product.
 | `Ctrl+L` | Lock |
 | `Ctrl+F` | Search |
 | `Ctrl+S` | Save (autosave also runs after every change) |
+| `↑` / `↓` | Move through the entry list |
+| `Enter` | Edit the selected entry |
+| `Delete` | Delete the selected entry |
+| `Esc` | Cancel editing, clear the search, or close the detail panel |
+
+The copy and open shortcuts act on the selected entry and only when no text
+field has focus, so `Ctrl+C` still copies text inside fields. URLs open only
+with `http` or `https`; a URL without a scheme gets `https://`.
 
 ## 5. Engineering
 

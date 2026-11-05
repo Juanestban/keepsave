@@ -141,6 +141,61 @@ fn deleting_goes_through_the_recycle_bin() {
 }
 
 #[test]
+fn summaries_and_recycle_bin_membership() {
+    let mut vault = new_vault();
+    let root = vault.root_group();
+    let id = vault.add_entry(root, &sample_entry("Mail")).unwrap();
+
+    let summary = vault.entry_summary(id).unwrap();
+    assert_eq!(summary.title, "Mail");
+    assert_eq!(summary.group, root);
+    assert!(!vault.is_in_recycle_bin(root));
+
+    vault.delete_entry(id).unwrap();
+    let bin = vault.recycle_bin().unwrap();
+    assert_eq!(vault.entry_summary(id).unwrap().group, bin);
+    assert!(vault.is_in_recycle_bin(bin));
+}
+
+#[test]
+fn entries_under_includes_nested_groups() {
+    let mut vault = new_vault();
+    let root = vault.root_group();
+    let work = vault.add_group(root, "Work").unwrap();
+    let servers = vault.add_group(work, "Servers").unwrap();
+    vault.add_entry(work, &sample_entry("VPN")).unwrap();
+    vault.add_entry(servers, &sample_entry("Bastion")).unwrap();
+    vault.add_entry(root, &sample_entry("Mail")).unwrap();
+
+    let titles: Vec<String> = vault
+        .entries_under(work)
+        .unwrap()
+        .into_iter()
+        .map(|entry| entry.title)
+        .collect();
+    assert_eq!(titles, ["Bastion", "VPN"]);
+}
+
+#[test]
+fn a_clone_saves_independently() {
+    let mut vault = new_vault();
+    let root = vault.root_group();
+    vault.add_entry(root, &sample_entry("Before")).unwrap();
+    let snapshot = vault.clone();
+    vault.add_entry(root, &sample_entry("After")).unwrap();
+
+    let reopened =
+        Vault::from_bytes(&snapshot.to_bytes().unwrap(), SecretString::from(PASSWORD)).unwrap();
+    let titles: Vec<String> = reopened
+        .entries_in(reopened.root_group())
+        .unwrap()
+        .into_iter()
+        .map(|entry| entry.title)
+        .collect();
+    assert_eq!(titles, ["Before"]);
+}
+
+#[test]
 fn deleting_groups_and_emptying_the_bin() {
     let mut vault = new_vault();
     let root = vault.root_group();

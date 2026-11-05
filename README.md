@@ -13,8 +13,9 @@ with a minimalist dark "liquid glass" UI and Google Drive sync.**
 </div>
 
 > [!WARNING]
-> KeepSave is in **early development**. You can create and unlock vaults, but
-> you can't view or edit entries yet. Don't trust it with real passwords yet.
+> KeepSave is in **early development**. Local vaults work end to end (groups,
+> entries, search, autosave, auto-lock), but Google Drive sync isn't there yet
+> and the code hasn't been audited. Keep a backup of any vault you use with it.
 > See [ROADMAP.md](ROADMAP.md) for the current status.
 
 ## Why KeepSave?
@@ -47,8 +48,9 @@ adds:
 | Liquid glass UI, Inter font, Phosphor icons | ✅ Done |
 | Spanish and English, with system language detection | ✅ Done |
 | Welcome, create vault and unlock screens | ✅ Done |
-| Main screen, clipboard auto-clear (15 s), shortcuts, autosave | ⬜ M3 |
-| Auto-lock (inactivity, minimize, OS sleep) | ⬜ M3 |
+| Main screen: groups, entry list, detail panel, inline generator | ✅ Done |
+| Clipboard auto-clear (15 s), KeePass shortcuts, autosave | ✅ Done |
+| Auto-lock (inactivity, minimize, OS sleep / session lock) | ✅ Done |
 | Google Drive connection and import on a new PC | ⬜ M4 |
 | Bidirectional sync, merge and versioned backups | ⬜ M5 |
 | Settings, optional Windows 11 Acrylic/Mica, portable `.exe` | ⬜ M6 |
@@ -139,9 +141,13 @@ works as a local-only password manager.
   memory.
 - **Secrets in memory:** passwords are held in `secrecy`/`zeroize` types and
   wiped when dropped. They are never logged and never printed for debugging.
-- **Clipboard:** copied secrets are cleared after 15 seconds.
+- **Clipboard:** copied secrets are cleared after 15 seconds, and on lock or
+  exit, but only if the clipboard still holds them. On Windows they are kept
+  out of the clipboard history and the cloud clipboard.
 - **Auto-lock:** after 5 minutes of inactivity, when the window is minimized,
-  and when the OS goes to sleep.
+  and when the OS goes to sleep or the session is locked. Pending changes are
+  saved first.
+- **Links:** only `http` and `https` URLs are opened from an entry.
 - **Google Drive:** OAuth uses a loopback redirect with PKCE and only the
   `drive.file` scope, so KeepSave can only see the files it created itself.
   The refresh token is stored in the OS keyring (Windows Credential Manager),
@@ -152,12 +158,27 @@ works as a local-only password manager.
 Your master password can't be recovered. If you forget it, the vault is
 gone. Keep a backup of it somewhere safe.
 
+## Keyboard shortcuts
+
+KeepSave follows KeePass:
+
+| Shortcut | Action |
+| --- | --- |
+| `Ctrl+B` / `Ctrl+C` | Copy the username / password of the selected entry |
+| `Ctrl+U` | Open the entry's URL |
+| `Ctrl+N` | New entry |
+| `Ctrl+F` | Search |
+| `Ctrl+S` | Save now (changes are also saved automatically) |
+| `Ctrl+L` | Lock |
+| `↑` `↓` / `Enter` / `Delete` | Move through entries / edit / move to the recycle bin |
+| `Esc` | Cancel editing, clear the search, or close the detail panel |
+
 ## Where KeepSave stores data
 
 | What | Where (Windows) |
 | --- | --- |
 | Vaults | Wherever you choose (`.kdbx` files) |
-| Settings | `%APPDATA%\KeepSave\config.toml` |
+| Settings | `%APPDATA%\KeepSave\config.toml` (lock and clipboard timers can be changed here until the Settings screen lands) |
 | Google refresh token | Windows Credential Manager |
 | Drive copies | A visible `KeepSave/` folder in your Drive, backups in `KeepSave/backups/` (last 10) |
 

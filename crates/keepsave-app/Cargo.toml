@@ -12,8 +12,10 @@ name = "keepsave"
 path = "src/main.rs"
 
 [dependencies]
+arboard = { version = "3.7", default-features = false }
+chrono = "0.4"
 directories = "6.0.0"
-eframe = { version = "0.36", default-features = false, features = ["wgpu", "accesskit", "default_fonts", "wayland", "x11"] }
+eframe = { version = "0.36", default-features = false, features = ["wgpu", "accesskit", "default_fonts", "links", "wayland", "x11"] }
 egui-phosphor = "0.14.0"
 fluent-bundle = "0.16.0"
 keepsave-core.workspace = true
@@ -26,6 +28,14 @@ tokio = { version = "1.54.1", features = ["rt-multi-thread"] }
 toml = "1.2.0"
 unic-langid = "0.9.6"
 zeroize = "1.9.1"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_System_LibraryLoader",
+    "Win32_System_RemoteDesktop",
+    "Win32_UI_WindowsAndMessaging",
+] }
 
 [dev-dependencies]
 tempfile = "3"

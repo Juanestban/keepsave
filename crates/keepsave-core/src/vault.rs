@@ -17,6 +17,9 @@ const DEFAULT_HISTORY_MAX_ITEMS: isize = 10;
 const DEFAULT_HISTORY_MAX_SIZE: isize = 6 * 1024 * 1024;
 
 /// An unlocked KDBX4 vault together with the master password needed to save it.
+///
+/// Cloning is how the app hands a snapshot to a background save.
+#[derive(Clone)]
 pub struct Vault {
     db: Database,
     password: SecretString,
@@ -206,7 +209,8 @@ impl Vault {
         id
     }
 
-    fn is_in_recycle_bin(&self, group: GroupId) -> bool {
+    /// True for the recycle bin and every group inside it.
+    pub fn is_in_recycle_bin(&self, group: GroupId) -> bool {
         let Some(bin) = self.recycle_bin() else {
             return false;
         };
@@ -233,6 +237,32 @@ impl Vault {
             .collect();
         entries.sort_by_key(|entry| entry.title.to_lowercase());
         Ok(entries)
+    }
+
+    /// Entries in `group` and in every group below it, sorted by title.
+    pub fn entries_under(&self, group: GroupId) -> Result<Vec<EntrySummary>> {
+        self.db.group(group).ok_or(CoreError::GroupNotFound)?;
+        let mut entries = Vec::new();
+        let mut pending = vec![group];
+        while let Some(id) = pending.pop() {
+            let Some(current) = self.db.group(id) else {
+                continue;
+            };
+            entries.extend(
+                current
+                    .entries()
+                    .map(|entry| EntrySummary::from_ref(&entry)),
+            );
+            pending.extend(current.groups().map(|child| child.id()));
+        }
+        entries.sort_by_key(|entry| entry.title.to_lowercase());
+        Ok(entries)
+    }
+
+    pub fn entry_summary(&self, id: EntryId) -> Option<EntrySummary> {
+        self.db
+            .entry(id)
+            .map(|entry| EntrySummary::from_ref(&entry))
     }
 
     pub fn entry(&self, id: EntryId) -> Option<EntryData> {

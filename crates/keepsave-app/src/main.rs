@@ -5,10 +5,12 @@
 
 mod app;
 mod background;
+mod clipboard;
 mod config;
 mod fonts;
 mod i18n;
 mod screens;
+mod session;
 mod theme;
 mod widgets;
 mod worker;

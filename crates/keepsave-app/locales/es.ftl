@@ -57,13 +57,113 @@ unlock-create = Crear una bóveda nueva
 unlock-error-wrong-password = Contraseña maestra incorrecta.
 unlock-error-not-found = No se encontró el archivo de la bóveda.
 
-## Unlocked vault (placeholder until the main screen lands)
+## Main screen
 
-vault-unlocked = Bóveda desbloqueada
-vault-entries =
+entries-count =
     { $count ->
         [one] 1 entrada
        *[other] { $count } entradas
     }
-vault-coming-soon = La pantalla principal llega en el próximo hito.
-vault-lock = Bloquear
+main-search = Buscar entradas (Ctrl+F)
+main-search-clear = Borrar búsqueda
+main-new-entry = Nueva entrada
+main-lock = Bloquear (Ctrl+L)
+main-groups = Grupos
+main-new-group = Nuevo grupo
+main-recycle-bin = Papelera
+main-results = Resultados para “{ $query }”
+main-empty-group = Aún no hay entradas aquí.
+main-empty-bin = La papelera está vacía.
+main-no-results = Nada coincide con tu búsqueda.
+main-copy-username = Copiar usuario (Ctrl+B)
+main-copy-password = Copiar contraseña (Ctrl+C)
+
+group-rename = Cambiar nombre
+group-delete = Mover a la papelera
+bin-empty = Vaciar papelera
+
+status-saved = Guardado
+status-saving = Guardando…
+status-failed = Sin guardar
+status-retry = Haz clic para reintentar. { $details }
+
+toast-copied-username = Usuario copiado
+toast-copied-password = Contraseña copiada
+toast-copied-url = URL copiada
+toast-copied-field = { $field } copiado
+toast-clears-in = se borra en { $seconds } s
+toast-copy-failed = No se pudo acceder al portapapeles.
+toast-moved-to-bin = Movido a la papelera
+toast-restored = Restaurado
+toast-version-restored = Versión restaurada
+toast-url-invalid = Solo se pueden abrir enlaces web (http o https).
+toast-saving-before-lock = Guardando antes de bloquear…
+toast-lock-save-failed = No se pudo guardar, así que la bóveda sigue desbloqueada.
+
+field-title = Título
+field-username = Usuario
+field-password = Contraseña
+field-url = URL
+field-notes = Notas
+field-tags = Etiquetas
+field-tags-hint = Separa las etiquetas con comas.
+field-group = Grupo
+field-custom = Campos personalizados
+field-add = Añadir campo
+field-name = Nombre del campo
+field-protect = Proteger este valor
+field-unprotect = Guardar como texto normal
+field-remove = Quitar campo
+
+detail-untitled = (sin título)
+detail-edit = Editar (Enter)
+detail-delete = Mover a la papelera (Supr)
+detail-delete-forever = Eliminar definitivamente
+detail-restore = Sacar de la papelera
+detail-close = Cerrar (Esc)
+detail-copy = Copiar
+detail-open-url = Abrir URL (Ctrl+U)
+detail-modified = Modificado { $date }
+detail-history = Historial ({ $count })
+detail-history-restore = Restaurar
+
+edit-new-title = Nueva entrada
+edit-title = Editar entrada
+edit-save = Guardar
+edit-cancel = Cancelar
+edit-error-field-empty = Cada campo personalizado necesita un nombre.
+edit-error-field-duplicate = Hay dos campos personalizados llamados “{ $name }”.
+edit-error-field-reserved = “{ $name }” es un nombre reservado. Elige otro.
+
+gen-toggle = Generar
+gen-hide = Ocultar generador
+gen-chars = Caracteres
+gen-words = Frase
+gen-length = Longitud
+gen-word-count = Palabras
+gen-separator = Separador
+gen-ambiguous = Evitar caracteres parecidos (0 O 1 l I)
+gen-regenerate = Generar otra
+gen-use = Usar esta contraseña
+gen-error-sets = Elige al menos un tipo de carácter.
+
+dialog-cancel = Cancelar
+dialog-new-group-title = Nuevo grupo
+dialog-rename-group-title = Cambiar nombre del grupo
+dialog-group-error-empty = Ponle un nombre al grupo.
+dialog-create = Crear
+dialog-rename = Cambiar nombre
+dialog-delete-forever-title = ¿Eliminar definitivamente?
+dialog-delete-forever-body = “{ $title }” se eliminará para siempre. No se puede deshacer.
+dialog-delete = Eliminar
+dialog-empty-bin-title = ¿Vaciar la papelera?
+dialog-empty-bin-body = Todo lo que hay en la papelera se eliminará para siempre. No se puede deshacer.
+dialog-empty = Vaciar
+dialog-discard-title = ¿Descartar los cambios?
+dialog-discard-body = Los cambios en esta entrada no se han guardado.
+dialog-discard = Descartar
+dialog-keep-editing = Seguir editando
+dialog-close-title = ¿Cerrar sin guardar?
+dialog-close-body = No se pudo guardar la bóveda. { $details }
+dialog-close-anyway = Cerrar de todos modos
+dialog-stay = Quedarme

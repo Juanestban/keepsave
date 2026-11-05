@@ -23,6 +23,11 @@ pub enum Event {
     NewVaultPathPicked(Option<PathBuf>),
     VaultCreated(Result<OpenVault, CoreError>),
     VaultUnlocked(Result<OpenVault, CoreError>),
+    /// `generation` identifies the snapshot that was written.
+    VaultSaved {
+        generation: u64,
+        result: Result<(), CoreError>,
+    },
 }
 
 pub struct Worker {
@@ -91,6 +96,15 @@ impl Worker {
         self.spawn_blocking(move || {
             let result = Vault::open(&path, password).map(|vault| OpenVault { vault, path });
             Event::VaultUnlocked(result)
+        });
+    }
+
+    /// Writes a snapshot of the vault. Saving re-derives the key, so it takes
+    /// as long as an unlock.
+    pub fn save_vault(&self, vault: Vault, path: PathBuf, generation: u64) {
+        self.spawn_blocking(move || Event::VaultSaved {
+            generation,
+            result: vault.save(&path),
         });
     }
 

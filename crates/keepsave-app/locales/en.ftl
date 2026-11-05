@@ -57,13 +57,113 @@ unlock-create = Create a new vault
 unlock-error-wrong-password = Wrong master password.
 unlock-error-not-found = The vault file could not be found.
 
-## Unlocked vault (placeholder until the main screen lands)
+## Main screen
 
-vault-unlocked = Vault unlocked
-vault-entries =
+entries-count =
     { $count ->
         [one] 1 entry
        *[other] { $count } entries
     }
-vault-coming-soon = The main screen arrives in the next milestone.
-vault-lock = Lock
+main-search = Search entries (Ctrl+F)
+main-search-clear = Clear search
+main-new-entry = New entry
+main-lock = Lock (Ctrl+L)
+main-groups = Groups
+main-new-group = New group
+main-recycle-bin = Recycle bin
+main-results = Results for “{ $query }”
+main-empty-group = No entries here yet.
+main-empty-bin = The recycle bin is empty.
+main-no-results = Nothing matches your search.
+main-copy-username = Copy username (Ctrl+B)
+main-copy-password = Copy password (Ctrl+C)
+
+group-rename = Rename
+group-delete = Move to recycle bin
+bin-empty = Empty recycle bin
+
+status-saved = Saved
+status-saving = Saving…
+status-failed = Not saved
+status-retry = Click to try again. { $details }
+
+toast-copied-username = Username copied
+toast-copied-password = Password copied
+toast-copied-url = URL copied
+toast-copied-field = { $field } copied
+toast-clears-in = clears in { $seconds } s
+toast-copy-failed = Couldn't access the clipboard.
+toast-moved-to-bin = Moved to the recycle bin
+toast-restored = Restored
+toast-version-restored = Version restored
+toast-url-invalid = Only web links (http or https) can be opened.
+toast-saving-before-lock = Saving before locking…
+toast-lock-save-failed = Couldn't save, so the vault stays unlocked.
+
+field-title = Title
+field-username = Username
+field-password = Password
+field-url = URL
+field-notes = Notes
+field-tags = Tags
+field-tags-hint = Separate tags with commas.
+field-group = Group
+field-custom = Custom fields
+field-add = Add field
+field-name = Field name
+field-protect = Protect this value
+field-unprotect = Store as plain text
+field-remove = Remove field
+
+detail-untitled = (untitled)
+detail-edit = Edit (Enter)
+detail-delete = Move to recycle bin (Delete)
+detail-delete-forever = Delete permanently
+detail-restore = Restore from the recycle bin
+detail-close = Close (Esc)
+detail-copy = Copy
+detail-open-url = Open URL (Ctrl+U)
+detail-modified = Modified { $date }
+detail-history = History ({ $count })
+detail-history-restore = Restore
+
+edit-new-title = New entry
+edit-title = Edit entry
+edit-save = Save
+edit-cancel = Cancel
+edit-error-field-empty = Every custom field needs a name.
+edit-error-field-duplicate = There are two custom fields named “{ $name }”.
+edit-error-field-reserved = “{ $name }” is a reserved name. Pick another one.
+
+gen-toggle = Generate
+gen-hide = Hide generator
+gen-chars = Characters
+gen-words = Passphrase
+gen-length = Length
+gen-word-count = Words
+gen-separator = Separator
+gen-ambiguous = Avoid look-alikes (0 O 1 l I)
+gen-regenerate = Generate another
+gen-use = Use this password
+gen-error-sets = Select at least one character set.
+
+dialog-cancel = Cancel
+dialog-new-group-title = New group
+dialog-rename-group-title = Rename group
+dialog-group-error-empty = Give the group a name.
+dialog-create = Create
+dialog-rename = Rename
+dialog-delete-forever-title = Delete permanently?
+dialog-delete-forever-body = “{ $title }” will be deleted for good. This can't be undone.
+dialog-delete = Delete
+dialog-empty-bin-title = Empty the recycle bin?
+dialog-empty-bin-body = Everything in the recycle bin will be deleted for good. This can't be undone.
+dialog-empty = Empty
+dialog-discard-title = Discard your changes?
+dialog-discard-body = Your changes to this entry haven't been saved.
+dialog-discard = Discard
+dialog-keep-editing = Keep editing
+dialog-close-title = Close without saving?
+dialog-close-body = The vault couldn't be saved. { $details }
+dialog-close-anyway = Close anyway
+dialog-stay = Stay

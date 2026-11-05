@@ -32,15 +32,16 @@ rationale lives in [docs/DESIGN.md](docs/DESIGN.md).
 - [x] Welcome and Unlock screens; Argon2 runs on a worker thread
 - [x] Create-vault form with strength meter; `config.toml` with recent vaults
 
-## M3 — Main screen ⬜
+## M3 — Main screen ✅
 
-- [ ] Sidebar with groups, entry list, sliding detail panel
-- [ ] Entry CRUD, custom fields, reveal toggle
-- [ ] Search (`Ctrl+F`)
-- [ ] Clipboard copy with auto-clear
-- [ ] Keyboard shortcuts (KeePass set)
-- [ ] Autosave
-- [ ] Auto-lock (inactivity, minimize, OS sleep / session lock)
+- [x] Sidebar with groups, entry list, sliding detail panel
+- [x] Entry CRUD, custom fields, reveal toggle
+- [x] Search (`Ctrl+F`)
+- [x] Clipboard copy with auto-clear
+- [x] Keyboard shortcuts (KeePass set)
+- [x] Autosave
+- [x] Auto-lock (inactivity, minimize, OS sleep / session lock)
+- [x] Inline password generator, entry history with restore, recycle bin restore
 
 ## M4 — Google Drive connection ⬜
 

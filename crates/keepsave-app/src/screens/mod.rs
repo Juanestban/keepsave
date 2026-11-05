@@ -1,8 +1,8 @@
 //! Screens and the navigation between them.
 
 mod create;
+mod main;
 mod unlock;
-mod vault;
 mod welcome;
 
 use std::{f32::consts::TAU, io, path::PathBuf};
@@ -12,8 +12,8 @@ use fluent_bundle::FluentArgs;
 use keepsave_core::CoreError;
 
 pub use create::CreateVault;
+pub use main::MainScreen;
 pub use unlock::Unlock;
-pub use vault::VaultHome;
 pub use welcome::Welcome;
 
 use crate::{
@@ -30,6 +30,8 @@ pub struct ScreenCtx<'a> {
     pub config: &'a Config,
     /// Vertical offset of the entrance animation, in points.
     pub lift: f32,
+    /// The OS went to sleep or locked the session since the last frame.
+    pub os_lock: bool,
 }
 
 /// A request from a screen to the app.

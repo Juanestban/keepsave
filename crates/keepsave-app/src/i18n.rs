@@ -1,6 +1,6 @@
 //! Fluent translations. Every user-visible string goes through [`I18n::tr`].
 
-use fluent_bundle::{FluentArgs, FluentBundle, FluentResource};
+use fluent_bundle::{FluentArgs, FluentBundle, FluentResource, FluentValue};
 use unic_langid::LanguageIdentifier;
 
 const ENGLISH_FTL: &str = include_str!("../locales/en.ftl");
@@ -70,6 +70,18 @@ impl I18n {
 
     pub fn tr(&self, key: &str) -> String {
         self.format(key, None)
+    }
+
+    /// Shorthand for a message with a single argument.
+    pub fn tr_arg<'a>(
+        &self,
+        key: &str,
+        name: &'a str,
+        value: impl Into<FluentValue<'a>>,
+    ) -> String {
+        let mut args = FluentArgs::new();
+        args.set(name, value);
+        self.tr_args(key, &args)
     }
 
     pub fn tr_args(&self, key: &str, args: &FluentArgs) -> String {

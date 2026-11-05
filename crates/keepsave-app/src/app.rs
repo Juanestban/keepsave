@@ -9,8 +9,8 @@ use crate::{
     config::Config,
     fonts,
     i18n::{I18n, Language},
-    screens::{CreateVault, Nav, ScreenCtx, Unlock, VaultHome, Welcome},
-    theme,
+    screens::{CreateVault, MainScreen, Nav, ScreenCtx, Unlock, Welcome},
+    session, theme,
     worker::{Event, Worker},
 };
 
@@ -22,7 +22,7 @@ enum Screen {
     Welcome(Welcome),
     Create(CreateVault),
     Unlock(Unlock),
-    Vault(VaultHome),
+    Main(Box<MainScreen>),
 }
 
 pub struct KeepSaveApp {
@@ -40,6 +40,7 @@ impl KeepSaveApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         fonts::install(&cc.egui_ctx);
         theme::apply(&cc.egui_ctx);
+        session::start(cc.egui_ctx.clone());
 
         let config_path = Config::default_path();
         let config = config_path
@@ -68,7 +69,7 @@ impl KeepSaveApp {
         }
     }
 
-    fn navigate(&mut self, nav: Nav) {
+    fn navigate(&mut self, nav: Nav, ctx: &egui::Context) {
         let screen = match nav {
             Nav::Welcome => Screen::Welcome(Welcome),
             Nav::Create => Screen::Create(CreateVault::new(&self.i18n)),
@@ -82,10 +83,15 @@ impl KeepSaveApp {
             Nav::Opened(open) => {
                 self.config.remember_vault(&open.path);
                 self.save_config();
-                Screen::Vault(VaultHome::new(open))
+                Screen::Main(Box::new(MainScreen::new(open)))
             }
-            // Replacing the screen drops the vault, which wipes its secrets.
-            Nav::Lock(path) => Screen::Unlock(Unlock::new(Some(path), &self.config)),
+            // Replacing the screen drops the vault, which wipes its secrets,
+            // and the clipboard, which clears what we copied. egui's widget
+            // memory may hold edited text, so it goes too.
+            Nav::Lock(path) => {
+                ctx.memory_mut(|memory| memory.data = Default::default());
+                Screen::Unlock(Unlock::new(Some(path), &self.config))
+            }
             Nav::SetLanguage(language) => {
                 self.i18n = I18n::new(language);
                 self.config.language = Some(language.code().into());
@@ -125,12 +131,16 @@ impl KeepSaveApp {
             worker: &self.worker,
             config: &self.config,
             lift: 0.0,
+            os_lock: false,
         };
         match &mut self.screen {
             Screen::Welcome(welcome) => welcome.on_event(event),
             Screen::Create(create) => create.on_event(event, &cx),
             Screen::Unlock(unlock) => unlock.on_event(event, &cx),
-            Screen::Vault(_) => None,
+            Screen::Main(main) => {
+                main.on_event(event, &cx);
+                None
+            }
         }
     }
 
@@ -148,12 +158,15 @@ impl KeepSaveApp {
 
 impl eframe::App for KeepSaveApp {
     fn ui(&mut self, ui: &mut Ui, _frame: &mut eframe::Frame) {
+        let ctx = ui.ctx().clone();
         let events: Vec<Event> = self.worker.poll().collect();
         for event in events {
             if let Some(nav) = self.handle_event(event) {
-                self.navigate(nav);
+                self.navigate(nav, &ctx);
             }
         }
+        // Taken on every screen, so a lock before unlocking can't carry over.
+        let os_lock = session::take_lock_request();
 
         self.background.paint(ui);
         let entrance = self.entrance(ui);
@@ -166,17 +179,18 @@ impl eframe::App for KeepSaveApp {
                     worker: &self.worker,
                     config: &self.config,
                     lift: (1.0 - entrance) * ENTRANCE_LIFT,
+                    os_lock,
                 };
                 match &mut self.screen {
                     Screen::Welcome(welcome) => welcome.ui(ui, &cx),
                     Screen::Create(create) => create.ui(ui, &cx),
                     Screen::Unlock(unlock) => unlock.ui(ui, &cx),
-                    Screen::Vault(vault) => vault.ui(ui, &cx),
+                    Screen::Main(main) => main.ui(ui, &cx),
                 }
             })
             .inner;
         if let Some(nav) = nav {
-            self.navigate(nav);
+            self.navigate(nav, &ctx);
         }
     }
 

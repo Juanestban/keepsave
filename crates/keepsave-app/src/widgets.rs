@@ -1,17 +1,26 @@
 //! Glass building blocks shared by every screen.
 
+use std::sync::Arc;
+
 use eframe::egui::{
-    self, Align2, Color32, CornerRadius, Frame, Id, InnerResponse, Mesh, Pos2, Rect, Response,
-    RichText, Sense, Shadow, Stroke, StrokeKind, TextEdit, Ui, UiBuilder, Vec2, WidgetInfo,
-    WidgetText, WidgetType,
-    text::{LayoutJob, TextFormat},
+    self, Align, Align2, Color32, CornerRadius, FontId, Frame, Galley, Id, InnerResponse, Layout,
+    Mesh, Pos2, Rect, Response, RichText, Sense, Shadow, Stroke, StrokeKind, TextEdit, Ui,
+    UiBuilder, Vec2, WidgetInfo, WidgetText, WidgetType,
+    text::{LayoutJob, TextFormat, TextWrapping},
 };
 use egui_phosphor::regular as icon;
 use zeroize::Zeroizing;
 
 use crate::theme;
 
-const HOVER_TIME: f32 = 0.12;
+pub const HOVER_TIME: f32 = 0.12;
+
+const PANEL_SHADOW: Shadow = Shadow {
+    offset: [0, 18],
+    blur: 48,
+    spread: 0,
+    color: theme::SHADOW,
+};
 
 /// A translucent card with a luminous border, a top-edge highlight and a
 /// soft shadow.
@@ -21,15 +30,97 @@ pub fn glass_card<R>(ui: &mut Ui, add: impl FnOnce(&mut Ui) -> R) -> InnerRespon
         .stroke(Stroke::new(1.0, theme::GLASS_STROKE))
         .corner_radius(CornerRadius::same(theme::RADIUS_PANEL))
         .inner_margin(theme::CARD_MARGIN)
-        .shadow(Shadow {
-            offset: [0, 18],
-            blur: 48,
-            spread: 0,
-            color: theme::SHADOW,
-        })
+        .shadow(PANEL_SHADOW)
         .show(ui, add);
     paint_highlight(ui, response.response.rect, theme::RADIUS_PANEL as f32);
     response
+}
+
+/// A glass panel filling exactly `rect`, with `add` laid out top-down inside
+/// its margin and clipped to it.
+pub fn glass_panel<R>(
+    ui: &mut Ui,
+    rect: Rect,
+    fill: Color32,
+    id_salt: &str,
+    add: impl FnOnce(&mut Ui) -> R,
+) -> R {
+    const MARGIN: f32 = 18.0;
+    let radius = CornerRadius::same(theme::RADIUS_PANEL);
+    let painter = ui.painter();
+    painter.add(PANEL_SHADOW.as_shape(rect, radius));
+    painter.rect(
+        rect,
+        radius,
+        fill,
+        Stroke::new(1.0, theme::GLASS_STROKE),
+        StrokeKind::Inside,
+    );
+    paint_highlight(ui, rect, theme::RADIUS_PANEL as f32);
+
+    let mut child = ui.new_child(
+        UiBuilder::new()
+            .id_salt(id_salt)
+            .max_rect(rect.shrink(MARGIN))
+            .layout(Layout::top_down(Align::Min)),
+    );
+    child.shrink_clip_rect(rect.shrink(1.0));
+    add(&mut child)
+}
+
+/// `text` on one line, cut with an ellipsis to fit `width`.
+pub fn single_line(ui: &Ui, text: &str, font: FontId, color: Color32, width: f32) -> Arc<Galley> {
+    let mut job = LayoutJob::simple_singleline(text.to_owned(), font, color);
+    job.wrap = TextWrapping::truncate_at_width(width.max(1.0));
+    ui.painter().layout_job(job)
+}
+
+/// Two buttons sharing a row, each taking half of it.
+pub fn button_pair(ui: &mut Ui, left: ActionButton, right: ActionButton) -> (Response, Response) {
+    const GAP: f32 = 10.0;
+    let (rect, _) = ui.allocate_exact_size(
+        Vec2::new(ui.available_width(), theme::CONTROL_HEIGHT),
+        Sense::hover(),
+    );
+    let half = Vec2::new((rect.width() - GAP) / 2.0, rect.height());
+    let left_rect = Rect::from_min_size(rect.min, half);
+    let right_rect = Rect::from_min_size(Pos2::new(rect.right() - half.x, rect.top()), half);
+    (
+        ui.put(left_rect, left.full_width()),
+        ui.put(right_rect, right.full_width()),
+    )
+}
+
+/// A round badge with the first letter of `title`, colored by the title.
+pub fn avatar(ui: &Ui, center: Pos2, radius: f32, title: &str) {
+    const PALETTE: [Color32; 6] = [
+        theme::ACCENT,
+        Color32::from_rgb(167, 139, 250),
+        Color32::from_rgb(244, 114, 182),
+        Color32::from_rgb(52, 211, 153),
+        Color32::from_rgb(251, 191, 36),
+        Color32::from_rgb(56, 189, 248),
+    ];
+    let hash = title.chars().fold(0usize, |hash, c| {
+        hash.wrapping_mul(31).wrapping_add(c as usize)
+    });
+    let color = PALETTE[hash % PALETTE.len()];
+    let letter: String = title
+        .chars()
+        .find(|c| c.is_alphanumeric())
+        .map(|c| c.to_uppercase().collect())
+        .unwrap_or_else(|| "\u{2022}".into());
+
+    let painter = ui.painter();
+    painter.circle_filled(center, radius, color.gamma_multiply(0.22));
+    painter.circle_stroke(center, radius, Stroke::new(1.0, color.gamma_multiply(0.35)));
+    painter.text(
+        center,
+        Align2::CENTER_CENTER,
+        letter,
+        theme::heading(radius * 0.85),
+        color,
+    );
 }
 
 /// A thin line along the top edge that fades out toward the corners.
@@ -113,6 +204,8 @@ pub fn centered_column<R>(
 pub enum ButtonStyle {
     /// Solid accent fill, for the main action of a screen.
     Primary,
+    /// Solid red fill, for actions that destroy data.
+    Danger,
     /// Translucent glass, for everything else.
     Glass,
 }
@@ -141,6 +234,11 @@ impl<'a> ActionButton<'a> {
 
     pub fn primary(mut self) -> Self {
         self.style = ButtonStyle::Primary;
+        self
+    }
+
+    pub fn danger(mut self) -> Self {
+        self.style = ButtonStyle::Danger;
         self
     }
 
@@ -213,6 +311,11 @@ impl egui::Widget for ActionButton<'_> {
                     theme::ON_ACCENT,
                     Stroke::NONE,
                 ),
+                ButtonStyle::Danger => (
+                    theme::DANGER.lerp_to_gamma(Color32::from_rgb(255, 150, 166), hover),
+                    theme::ON_ACCENT,
+                    Stroke::NONE,
+                ),
                 ButtonStyle::Glass => (
                     theme::GLASS_FILL.lerp_to_gamma(theme::GLASS_FILL_HOVER, hover),
                     theme::TEXT,
@@ -268,6 +371,25 @@ pub fn icon_button(ui: &mut Ui, icon: &str, tooltip: &str) -> Response {
 pub fn link(ui: &mut Ui, text: &str) -> Response {
     let response = ui.add(
         egui::Button::new(RichText::new(text).color(theme::ACCENT))
+            .frame(false)
+            .min_size(Vec2::new(0.0, 28.0)),
+    );
+    response.on_hover_cursor(egui::CursorIcon::PointingHand)
+}
+
+/// A [`link`] with a leading icon.
+pub fn icon_link(ui: &mut Ui, glyph: &str, text: &str) -> Response {
+    let format = |font_id| TextFormat {
+        font_id,
+        color: theme::ACCENT,
+        valign: Align::Center,
+        ..TextFormat::default()
+    };
+    let mut job = LayoutJob::default();
+    job.append(glyph, 0.0, format(theme::icon_font(15.0)));
+    job.append(text, 6.0, format(FontId::proportional(15.0)));
+    let response = ui.add(
+        egui::Button::new(job)
             .frame(false)
             .min_size(Vec2::new(0.0, 28.0)),
     );
@@ -357,6 +479,78 @@ pub fn text_field(ui: &mut Ui, id: Id, text: &mut String, enabled: bool) -> Resp
             )
         })
         .inner
+}
+
+/// A multi-line text input styled like [`text_field`].
+pub fn multiline_field(ui: &mut Ui, id: Id, text: &mut String, rows: usize) -> Response {
+    let stroke = focus_stroke(ui, id);
+    input_frame(stroke)
+        .inner_margin(egui::Margin::symmetric(12, 8))
+        .show(ui, |ui| {
+            ui.add(
+                TextEdit::multiline(text)
+                    .id(id)
+                    .frame(Frame::NONE)
+                    .desired_width(ui.available_width())
+                    .desired_rows(rows)
+                    .font(egui::TextStyle::Body),
+            )
+        })
+        .inner
+}
+
+/// The search box: a magnifier, the input with a hint, and a clear button.
+pub fn search_field(ui: &mut Ui, id: Id, text: &mut String, hint: &str, clear: &str) -> Response {
+    let stroke = focus_stroke(ui, id);
+    input_frame(stroke)
+        .show(ui, |ui| {
+            // Explicit: the top bar lays out right to left.
+            ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
+                ui.label(
+                    RichText::new(icon::MAGNIFYING_GLASS)
+                        .font(theme::icon_font(16.0))
+                        .color(theme::TEXT_MUTED),
+                );
+                let reserve = if text.is_empty() { 0.0 } else { 40.0 };
+                let response = ui.add(
+                    TextEdit::singleline(text)
+                        .id(id)
+                        .hint_text(RichText::new(hint).color(theme::TEXT_FAINT))
+                        .frame(Frame::NONE)
+                        .desired_width(ui.available_width() - reserve)
+                        .font(egui::TextStyle::Body)
+                        .min_size(Vec2::new(0.0, 32.0))
+                        .vertical_align(Align::Center),
+                );
+                if !text.is_empty() && icon_button(ui, icon::X, clear).clicked() {
+                    text.clear();
+                    response.request_focus();
+                }
+                response
+            })
+            .inner
+        })
+        .inner
+}
+
+/// A caption on the left and `right` aligned to the right, on one short row.
+pub fn label_row<R>(ui: &mut Ui, text: &str, right: impl FnOnce(&mut Ui) -> R) -> R {
+    let row = Vec2::new(ui.available_width(), 24.0);
+    ui.allocate_ui_with_layout(row, Layout::left_to_right(Align::Center), |ui| {
+        field_label(ui, text);
+        ui.with_layout(Layout::right_to_left(Align::Center), right)
+            .inner
+    })
+    .inner
+}
+
+/// The input border, fading to the accent while `id` has focus.
+fn focus_stroke(ui: &Ui, id: Id) -> Color32 {
+    let focused = ui.memory(|memory| memory.has_focus(id));
+    let focus = ui
+        .ctx()
+        .animate_bool_with_time(id.with("focus"), focused, HOVER_TIME);
+    theme::GLASS_STROKE.lerp_to_gamma(theme::ACCENT, focus)
 }
 
 fn input_frame(stroke: Color32) -> Frame {
