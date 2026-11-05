@@ -52,7 +52,7 @@ adds:
 | Clipboard auto-clear (15 s), KeePass shortcuts, autosave | ✅ Done |
 | Auto-lock (inactivity, minimize, OS sleep / session lock) | ✅ Done |
 | Google Drive connection, upload and import on a new PC | 🟨 M4 (awaiting a real-account check) |
-| Bidirectional sync, merge and versioned backups | ⬜ M5 |
+| Bidirectional sync, merge and versioned backups | 🟨 M5 (awaiting a real-account check) |
 | Settings, optional Windows 11 Acrylic/Mica, portable `.exe` | ⬜ M6 |
 
 Planned after v1: auto-type, attachments, key files, Windows Hello unlock,
@@ -150,6 +150,9 @@ a local-only password manager, with the Drive actions hidden.
   and when the OS goes to sleep or the session is locked. Pending changes are
   saved first.
 - **Links:** only `http` and `https` URLs are opened from an entry.
+- **Sync:** before KeepSave overwrites the copy on Drive it keeps the old one
+  in `KeepSave/backups/` (last 10 per vault). A Drive copy with a different
+  master password is never overwritten.
 - **Google Drive:** OAuth uses a loopback redirect with PKCE and only the
   `drive.file` scope, so KeepSave can only see the files it created itself.
   The refresh token is stored in the OS keyring (Windows Credential Manager),

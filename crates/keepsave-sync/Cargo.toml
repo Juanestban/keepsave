@@ -9,6 +9,7 @@ authors.workspace = true
 
 [dependencies]
 base64 = "0.23"
+chrono = "0.4"
 keepsave-core.workspace = true
 keyring = "4"
 rand = "0.10"
@@ -23,4 +24,4 @@ tokio = { version = "1.54.1", features = ["net", "io-util", "time", "sync", "mac
 zeroize = "1"
 
 [dev-dependencies]
-tokio = { version = "1.54.1", features = ["rt", "macros", "net", "io-util"] }
+tokio = { version = "1.54.1", features = ["rt", "rt-multi-thread", "macros", "net", "io-util"] }

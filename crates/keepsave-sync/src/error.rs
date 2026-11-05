@@ -29,4 +29,12 @@ pub enum SyncError {
 
   #[error(transparent)]
   Io(#[from] std::io::Error),
+
+  /// The remote copy couldn't be opened or merged, e.g. it has another
+  /// master password.
+  #[error(transparent)]
+  Vault(#[from] keepsave_core::CoreError),
+
+  #[error("the vault is no longer on Google Drive")]
+  RemoteMissing,
 }

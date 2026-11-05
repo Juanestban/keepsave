@@ -53,13 +53,16 @@ Code complete; waiting for an end-to-end check against a real Google account.
 - [x] Link a vault to a Drive `fileId` in `config.toml`
 - [ ] Manual check with real credentials: connect, upload, import on another PC, disconnect
 
-## M5 — Sync & merge ⬜
+## M5 — Sync & merge 🟨
 
-- [ ] KeePass-style merge by UUID / mtime, honoring `DeletedObjects`; losers go to history
-- [ ] Sync triggers: unlock, debounced save, manual button
-- [ ] Offline "pending upload" state
-- [ ] Versioned backups in `KeepSave/backups/` (keep 10)
-- [ ] Merge tests and sync tests with a fake `RemoteStore`
+Code complete; waiting for a check with two PCs (or two vault copies) on a real account.
+
+- [x] KeePass-style merge by UUID / mtime, honoring `DeletedObjects`; losers go to history
+- [x] Sync triggers: unlock, debounced save, manual button
+- [x] Offline "pending upload" state
+- [x] Versioned backups in `KeepSave/backups/` (keep 10)
+- [x] Merge tests and sync tests with a fake `RemoteStore`
+- [ ] Manual check: edit on two PCs, sync both, confirm nothing is lost
 
 ## M6 — Settings, polish, release ⬜
 

@@ -1,10 +1,12 @@
 //! Google Drive for KeepSave: OAuth sign-in (loopback redirect with PKCE),
-//! the refresh token in the OS credential store, and a small Drive REST
-//! client behind the [`RemoteStore`] trait.
+//! the refresh token in the OS credential store, a small Drive REST client
+//! behind the [`RemoteStore`] trait, and the sync that merges and uploads a
+//! vault.
 
 mod drive;
 mod error;
 mod oauth;
+mod sync;
 mod token_store;
 
 use std::future::Future;
@@ -12,9 +14,10 @@ use std::future::Future;
 use secrecy::SecretString;
 use serde::Deserialize;
 
-pub use drive::{DriveClient, FOLDER_NAME};
+pub use drive::{BACKUPS_FOLDER_NAME, DriveClient, FOLDER_NAME};
 pub use error::{Result, SyncError};
 pub use oauth::BrowserPage;
+pub use sync::{MAX_BACKUPS, SyncLink, SyncOutcome, sync_vault};
 pub use token_store::{delete_refresh_token, load_refresh_token};
 
 /// The OAuth client of this build. Not `Debug`: it holds the client secret.
@@ -69,6 +72,11 @@ pub trait RemoteStore: Send + Sync {
   /// Replaces the contents of an existing file.
   fn update(&self, id: &str, bytes: Vec<u8>) -> impl Future<Output = Result<RemoteFile>> + Send;
   fn metadata(&self, id: &str) -> impl Future<Output = Result<RemoteFile>> + Send;
+  /// Copies the file into the backups folder under `name`.
+  fn backup(&self, id: &str, name: &str) -> impl Future<Output = Result<RemoteFile>> + Send;
+  /// Every file in the backups folder, of all vaults.
+  fn list_backups(&self) -> impl Future<Output = Result<Vec<RemoteFile>>> + Send;
+  fn delete(&self, id: &str) -> impl Future<Output = Result<()>> + Send;
 }
 
 #[cfg(test)]

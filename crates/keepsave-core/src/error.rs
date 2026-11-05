@@ -30,6 +30,9 @@ pub enum CoreError {
 
   #[error("key derivation failed: {0}")]
   Kdf(String),
+
+  #[error("could not merge the vaults: {0}")]
+  Merge(String),
 }
 
 impl From<DatabaseOpenError> for CoreError {

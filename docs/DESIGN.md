@@ -153,6 +153,42 @@ backup copy is kept in a separate folder on every upload.
   `DeletedObjects` is honored so deletions propagate, and the losing version
   of an entry is pushed into that entry's history, so nothing is lost.
 
+Implementation (M5):
+
+- **Merge engine:** the `keepass` crate's own merge (feature `_merge`),
+  which follows KeePassXC. It is marked unstable, so the crate version stays
+  pinned by `Cargo.lock` and our merge tests guard upgrades. After a merge
+  KeepSave trims every entry's history back to the vault's limit (10).
+  Attachments are not merged yet (they are post-v1 anyway).
+- **One sync:**
+  1. Read the Drive file's metadata. A trashed or missing file is an error;
+     the user can unlink the vault.
+  2. If the remote `version` changed since the last sync, download it,
+     decrypt it with the vault's master password and merge it into a
+     snapshot of the local vault. A different master password on Drive is
+     an error, never a silent overwrite.
+  3. If the local vault has changes Drive doesn't have yet, copy the Drive
+     file to `KeepSave/backups/` (server-side copy named
+     `<vault name> <UTC timestamp>.kdbx`), upload the merged snapshot over
+     it, and delete the oldest backups of that vault beyond 10.
+  4. The open vault then merges the remote copy too, so edits made while the
+     sync ran are kept; autosave writes the result locally.
+- **Pending upload:** each link in `config.toml` has a `pending` flag, set
+  on the first local change after a sync and cleared once Drive has it. It
+  survives restarts, so changes made offline are uploaded at the next
+  unlock.
+- **Timing:** a sync runs when a linked vault opens (or Drive connects), 3 s
+  after a save that left changes pending, and on demand. After a network
+  error it retries every 60 s while the vault is open; other errors wait for
+  the next change or a manual retry.
+- **Results that arrive after locking are dropped,** and the link keeps its
+  old `version`. The next sync then downloads and merges our own upload
+  again, which is harmless; updating the version without merging could lose
+  remote changes.
+- **Known gap:** Drive v3 has no conditional update, so two PCs uploading in
+  the same second can race. The loser's version is still in
+  `KeepSave/backups/`.
+
 ### Drive in the UI before Settings (M4)
 
 Until the Settings screen exists, Drive lives in the main screen's sidebar,
@@ -165,13 +201,14 @@ above the recycle bin:
 - **Linked:** "On Google Drive". Its menu unlinks the vault or disconnects
   Drive.
 
-In M4 KeepSave only **creates** files on Drive and downloads them; it never
-overwrites a Drive file. Updating a linked file needs the merge from M5, so a
-change made on another PC can't be lost.
+In M4 KeepSave only created files on Drive and downloaded them. From M5 a
+linked vault syncs (Q13), and the sidebar row shows the sync state: synced
+(with the time), pending upload, syncing, waiting for the network, or the
+error. Clicking it syncs now; its menu also unlinks or disconnects.
 
 Links are kept in `config.toml` as `[[drive_links]]` entries with the local
-path, the Drive `file_id`, and the `version` and `modified_time` last seen
-(used by M5 to detect remote changes). Disconnecting keeps the links, so
+path, the Drive `file_id`, the `version` and `modified_time` last seen
+(to detect remote changes) and the `pending` upload flag. Disconnecting keeps the links, so
 reconnecting resumes them.
 
 ### Q17 — "New PC" flow

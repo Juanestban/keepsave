@@ -65,6 +65,14 @@ pub enum Nav {
     file: RemoteFile,
   },
   UnlinkDrive(PathBuf),
+  /// A sync finished: Drive holds `file`, and `pending` says whether local
+  /// changes are still waiting to be uploaded.
+  DriveSynced {
+    path: PathBuf,
+    file: RemoteFile,
+    pending: bool,
+  },
+  DrivePending(PathBuf),
 }
 
 pub fn error_message(i18n: &I18n, error: &CoreError) -> String {

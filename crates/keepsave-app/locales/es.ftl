@@ -187,7 +187,7 @@ drive-retry = Reintentar
 drive-upload = Subir a Drive
 drive-uploading = Subiendo…
 drive-linked = En Google Drive
-drive-linked-tooltip = Vinculada a “{ $name }” en Drive. La sincronización de cambios llega en la próxima versión.
+drive-linked-tooltip = Vinculada a “{ $name }” en Drive. Haz clic para sincronizar ahora.
 drive-unlink = Desvincular esta bóveda
 drive-disconnect = Desconectar Google Drive
 drive-error-denied = No se concedió el acceso en el navegador.
@@ -200,3 +200,20 @@ drive-browser-denied-title = KeepSave no se conectó
 drive-browser-denied-body = No se concedió el acceso. Ya puedes cerrar esta pestaña.
 dialog-import-title = Guarda la bóveda en este PC
 toast-drive-uploaded = Bóveda subida a Google Drive
+
+## Sync
+
+sync-now = Sincronizar ahora
+sync-running = Sincronizando…
+sync-done = Sincronizada a las { $time }
+sync-pending = Subida pendiente
+sync-offline = Esperando la red
+sync-offline-tooltip = Tus cambios están guardados en este PC. KeepSave reintenta cada minuto, o haz clic para intentarlo ya.
+sync-failed = Error al sincronizar
+toast-drive-merged =
+    { $count ->
+        [one] 1 cambio desde Google Drive
+       *[other] { $count } cambios desde Google Drive
+    }
+drive-error-missing = Esta bóveda ya no está en Google Drive. Desvincúlala y vuelve a subirla.
+drive-error-password = La copia de Google Drive tiene otra contraseña maestra, así que no se tocó.

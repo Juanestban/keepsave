@@ -83,7 +83,8 @@ impl KeepSaveApp {
       Nav::Opened(open) => {
         self.config.remember_vault(&open.path);
         self.save_config();
-        Screen::Main(Box::new(MainScreen::new(open)))
+        let pending = self.config.drive_link(&open.path).is_some_and(|link| link.pending);
+        Screen::Main(Box::new(MainScreen::new(open, pending)))
       }
       // Replacing the screen drops the vault, which wipes its secrets,
       // and the clipboard, which clears what we copied. egui's widget
@@ -144,6 +145,16 @@ impl KeepSaveApp {
       }
       Nav::UnlinkDrive(path) => {
         self.config.unlink_drive(&path);
+        self.save_config();
+        return;
+      }
+      Nav::DriveSynced { path, file, pending } => {
+        self.config.drive_synced(&path, &file, pending);
+        self.save_config();
+        return;
+      }
+      Nav::DrivePending(path) => {
+        self.config.set_drive_pending(&path, true);
         self.save_config();
         return;
       }

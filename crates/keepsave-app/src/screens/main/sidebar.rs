@@ -120,11 +120,29 @@ fn drive_section(ui: &mut Ui, screen: &MainScreen, cx: &ScreenCtx, actions: &mut
     }
     DriveState::Connected(_) => {
       let response = match link {
-        Some(link) => drive_row(ui, icon::CLOUD_CHECK, &tr("drive-linked"), theme::SUCCESS, false).on_hover_text(cx.i18n.tr_arg(
-          "drive-linked-tooltip",
-          "name",
-          link.name.clone(),
-        )),
+        Some(link) => {
+          let sync = &screen.drive;
+          let linked = cx.i18n.tr_arg("drive-linked-tooltip", "name", link.name.clone());
+          let response = if sync.in_flight.is_some() {
+            drive_row(ui, icon::CLOUD_ARROW_UP, &tr("sync-running"), theme::TEXT_MUTED, true)
+          } else if let Some(error) = &sync.error {
+            drive_row(ui, icon::WARNING_CIRCLE, &tr("sync-failed"), theme::DANGER, false).on_hover_text(error)
+          } else if sync.offline {
+            drive_row(ui, icon::CLOUD_SLASH, &tr("sync-offline"), theme::WARNING, false).on_hover_text(tr("sync-offline-tooltip"))
+          } else if sync.pending {
+            drive_row(ui, icon::CLOUD_ARROW_UP, &tr("sync-pending"), theme::TEXT_MUTED, false).on_hover_text(linked)
+          } else {
+            let label = match &sync.last_synced {
+              Some(time) => cx.i18n.tr_arg("sync-done", "time", time.clone()),
+              None => tr("drive-linked"),
+            };
+            drive_row(ui, icon::CLOUD_CHECK, &label, theme::SUCCESS, false).on_hover_text(linked)
+          };
+          if response.clicked() && sync.in_flight.is_none() {
+            actions.push(Action::SyncNow);
+          }
+          response
+        }
         None => {
           let response = drive_row(ui, icon::CLOUD_ARROW_UP, &tr("drive-upload"), theme::ACCENT, false);
           if response.clicked() {
@@ -134,6 +152,10 @@ fn drive_section(ui: &mut Ui, screen: &MainScreen, cx: &ScreenCtx, actions: &mut
         }
       };
       response.context_menu(|ui| {
+        if link.is_some() && ui.add_enabled(screen.drive.in_flight.is_none(), egui::Button::new(tr("sync-now"))).clicked() {
+          actions.push(Action::SyncNow);
+          ui.close();
+        }
         if link.is_some() && ui.button(tr("drive-unlink")).clicked() {
           actions.push(Action::UnlinkDrive);
           ui.close();

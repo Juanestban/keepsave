@@ -187,7 +187,7 @@ drive-retry = Try again
 drive-upload = Upload to Drive
 drive-uploading = Uploading…
 drive-linked = On Google Drive
-drive-linked-tooltip = Linked to “{ $name }” on Drive. Syncing changes arrives in the next version.
+drive-linked-tooltip = Linked to “{ $name }” on Drive. Click to sync now.
 drive-unlink = Unlink this vault
 drive-disconnect = Disconnect Google Drive
 drive-error-denied = Access wasn't granted in the browser.
@@ -200,3 +200,20 @@ drive-browser-denied-title = KeepSave wasn't connected
 drive-browser-denied-body = Access wasn't granted. You can close this tab.
 dialog-import-title = Save the vault on this PC
 toast-drive-uploaded = Vault uploaded to Google Drive
+
+## Sync
+
+sync-now = Sync now
+sync-running = Syncing…
+sync-done = Synced at { $time }
+sync-pending = Upload pending
+sync-offline = Waiting for the network
+sync-offline-tooltip = Your changes are saved on this PC. KeepSave retries every minute, or click to try now.
+sync-failed = Sync failed
+toast-drive-merged =
+    { $count ->
+        [one] 1 change from Google Drive
+       *[other] { $count } changes from Google Drive
+    }
+drive-error-missing = This vault is no longer on Google Drive. Unlink it, then upload it again.
+drive-error-password = The copy on Google Drive has a different master password, so it wasn't touched.

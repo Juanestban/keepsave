@@ -18,6 +18,8 @@ use crate::{
 
 /// The visible folder in the user's Drive that holds the vaults.
 pub const FOLDER_NAME: &str = "KeepSave";
+/// Inside [`FOLDER_NAME`]: copies of a vault taken before it is overwritten.
+pub const BACKUPS_FOLDER_NAME: &str = "backups";
 const API: &str = "https://www.googleapis.com/drive/v3";
 const UPLOAD_API: &str = "https://www.googleapis.com/upload/drive/v3";
 const FOLDER_MIME: &str = "application/vnd.google-apps.folder";
@@ -31,12 +33,22 @@ pub struct DriveClient {
   refresh_token: SecretString,
   access: Mutex<Option<AccessToken>>,
   folder_id: Mutex<Option<String>>,
+  backups_id: Mutex<Option<String>>,
 }
 
 #[derive(Deserialize)]
 struct FileList {
   #[serde(default)]
   files: Vec<RemoteFile>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FilePage {
+  #[serde(default)]
+  files: Vec<RemoteFile>,
+  #[serde(default)]
+  next_page_token: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -52,7 +64,7 @@ struct ApiErrorBody {
 impl DriveClient {
   /// A client for a refresh token stored earlier. Makes no request.
   pub fn new(credentials: Credentials, refresh_token: SecretString) -> Result<Self> {
-    Ok(Self { http: http_client()?, credentials, refresh_token, access: Mutex::new(None), folder_id: Mutex::new(None) })
+    Ok(Self { http: http_client()?, credentials, refresh_token, access: Mutex::new(None), folder_id: Mutex::new(None), backups_id: Mutex::new(None) })
   }
 
   /// Signs in through the browser and stores the refresh token in the OS
@@ -65,7 +77,14 @@ impl DriveClient {
     let http = http_client()?;
     let tokens = oauth::authorize(&http, &credentials, pages, open_browser).await?;
     token_store::save_refresh_token(&tokens.refresh)?;
-    Ok(Self { http, credentials, refresh_token: tokens.refresh, access: Mutex::new(Some(tokens.access)), folder_id: Mutex::new(None) })
+    Ok(Self {
+      http,
+      credentials,
+      refresh_token: tokens.refresh,
+      access: Mutex::new(Some(tokens.access)),
+      folder_id: Mutex::new(None),
+      backups_id: Mutex::new(None),
+    })
   }
 
   /// Revokes the grant and forgets the stored token. The token is removed
@@ -112,39 +131,70 @@ impl DriveClient {
     if let Some(id) = cached.as_ref() {
       return Ok(id.clone());
     }
-    let query = format!("name = '{}' and mimeType = '{FOLDER_MIME}' and 'root' in parents and trashed = false", escape_query(FOLDER_NAME));
-    let list: FileList =
-      self.json(|http| http.get(format!("{API}/files")).query(&[("q", query.as_str()), ("fields", "files(id,name)"), ("spaces", "drive")])).await?;
-    let id = match list.files.into_iter().next() {
-      Some(folder) => folder.id,
-      None => {
-        let body = json!({ "name": FOLDER_NAME, "mimeType": FOLDER_MIME, "parents": ["root"] });
-        let folder: RemoteFile = self.json(|http| http.post(format!("{API}/files")).query(&[("fields", "id,name")]).json(&body)).await?;
-        folder.id
-      }
-    };
+    let id = self.find_or_create_folder(FOLDER_NAME, "root").await?;
     *cached = Some(id.clone());
     Ok(id)
+  }
+
+  /// `KeepSave/backups`, created on first use.
+  async fn backups_id(&self) -> Result<String> {
+    let parent = self.folder_id().await?;
+    let mut cached = self.backups_id.lock().await;
+    if let Some(id) = cached.as_ref() {
+      return Ok(id.clone());
+    }
+    let id = self.find_or_create_folder(BACKUPS_FOLDER_NAME, &parent).await?;
+    *cached = Some(id.clone());
+    Ok(id)
+  }
+
+  async fn find_or_create_folder(&self, name: &str, parent: &str) -> Result<String> {
+    let query =
+      format!("name = '{}' and mimeType = '{FOLDER_MIME}' and '{}' in parents and trashed = false", escape_query(name), escape_query(parent));
+    let list: FileList =
+      self.json(|http| http.get(format!("{API}/files")).query(&[("q", query.as_str()), ("fields", "files(id,name)"), ("spaces", "drive")])).await?;
+    if let Some(folder) = list.files.into_iter().next() {
+      return Ok(folder.id);
+    }
+    let body = json!({ "name": name, "mimeType": FOLDER_MIME, "parents": [parent] });
+    let folder: RemoteFile = self.json(|http| http.post(format!("{API}/files")).query(&[("fields", "id,name")]).json(&body)).await?;
+    Ok(folder.id)
+  }
+
+  async fn files_in(&self, folder: &str, extra: &str) -> Result<Vec<RemoteFile>> {
+    let query = format!("'{}' in parents and trashed = false and mimeType != '{FOLDER_MIME}'{extra}", escape_query(folder));
+    let fields = format!("nextPageToken,files({FILE_FIELDS})");
+    let mut files = Vec::new();
+    let mut page_token: Option<String> = None;
+    loop {
+      let list: FilePage = self
+        .json(|http| {
+          let mut request = http.get(format!("{API}/files")).query(&[
+            ("q", query.as_str()),
+            ("fields", fields.as_str()),
+            ("orderBy", "name"),
+            ("pageSize", "1000"),
+            ("spaces", "drive"),
+          ]);
+          if let Some(token) = &page_token {
+            request = request.query(&[("pageToken", token.as_str())]);
+          }
+          request
+        })
+        .await?;
+      files.extend(list.files);
+      match list.next_page_token {
+        Some(token) => page_token = Some(token),
+        None => return Ok(files),
+      }
+    }
   }
 }
 
 impl RemoteStore for DriveClient {
   async fn list_vaults(&self) -> Result<Vec<RemoteFile>> {
     let folder = self.folder_id().await?;
-    let query = format!("'{}' in parents and trashed = false and mimeType != '{FOLDER_MIME}'", escape_query(&folder));
-    let fields = format!("files({FILE_FIELDS})");
-    let list: FileList = self
-      .json(|http| {
-        http.get(format!("{API}/files")).query(&[
-          ("q", query.as_str()),
-          ("fields", fields.as_str()),
-          ("orderBy", "name"),
-          ("pageSize", "200"),
-          ("spaces", "drive"),
-        ])
-      })
-      .await?;
-    Ok(list.files.into_iter().filter(|file| file.name.to_ascii_lowercase().ends_with(".kdbx")).collect())
+    Ok(self.files_in(&folder, "").await?.into_iter().filter(|file| file.name.to_ascii_lowercase().ends_with(".kdbx")).collect())
   }
 
   async fn download(&self, id: &str) -> Result<Vec<u8>> {
@@ -182,6 +232,22 @@ impl RemoteStore for DriveClient {
 
   async fn metadata(&self, id: &str) -> Result<RemoteFile> {
     self.json(|http| http.get(format!("{API}/files/{id}")).query(&[("fields", FILE_FIELDS)])).await
+  }
+
+  async fn backup(&self, id: &str, name: &str) -> Result<RemoteFile> {
+    let backups = self.backups_id().await?;
+    let body = json!({ "name": name, "parents": [backups] });
+    self.json(|http| http.post(format!("{API}/files/{id}/copy")).query(&[("fields", FILE_FIELDS)]).json(&body)).await
+  }
+
+  async fn list_backups(&self) -> Result<Vec<RemoteFile>> {
+    let backups = self.backups_id().await?;
+    self.files_in(&backups, "").await
+  }
+
+  async fn delete(&self, id: &str) -> Result<()> {
+    self.send(|http| http.delete(format!("{API}/files/{id}"))).await?;
+    Ok(())
   }
 }
 

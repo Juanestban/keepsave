@@ -15,6 +15,7 @@ use eframe::egui::{
 };
 use egui_phosphor::regular as icon;
 use keepsave_core::{CoreError, EntryId, EntrySummary, ExposeSecret, GroupId, Vault};
+use keepsave_sync::{SyncLink, SyncOutcome};
 use zeroize::Zeroizing;
 
 use super::{Nav, ScreenCtx, error_message};
@@ -29,6 +30,10 @@ use dialogs::Dialog;
 
 /// Wait this long after the last change before saving.
 const AUTOSAVE_DELAY: f64 = 1.0;
+/// Sync this long after the last change, so the save lands first.
+const SYNC_DELAY: f64 = AUTOSAVE_DELAY + 3.0;
+/// Retry a sync that failed for network reasons this often.
+const SYNC_RETRY: f64 = 60.0;
 const TOAST_TIME: f64 = 2.4;
 const MARGIN: f32 = 16.0;
 const GAP: f32 = 14.0;
@@ -81,6 +86,7 @@ pub enum Action {
   DisconnectDrive,
   UploadToDrive,
   UnlinkDrive,
+  SyncNow,
   /// The user confirmed throwing away the draft; then do the action.
   Discard(Box<Action>),
 }
@@ -187,6 +193,29 @@ impl Autosave {
   }
 }
 
+/// Where this vault stands with its Drive copy.
+#[derive(Default)]
+struct DriveSync {
+  /// Local changes Drive doesn't have yet. Mirrors the link in `config.toml`.
+  pending: bool,
+  /// `pending` as last written to the config.
+  pending_saved: bool,
+  /// The autosave generation of the snapshot being synced.
+  in_flight: Option<u64>,
+  /// Check Drive once the vault is open and Drive is connected.
+  needs_check: bool,
+  requested: bool,
+  retry_at: Option<f64>,
+  /// A network problem: changes stay local until a retry works.
+  offline: bool,
+  error: Option<String>,
+  /// The change count when a non-network error happened; no automatic
+  /// retry until something changes.
+  failed_at: Option<u64>,
+  /// Local time of the last successful sync in this session.
+  last_synced: Option<String>,
+}
+
 struct Toast {
   text: String,
   error: bool,
@@ -214,10 +243,14 @@ pub struct MainScreen {
   allow_close: bool,
   /// A copy is being uploaded to Drive.
   uploading: bool,
+  drive: DriveSync,
+  /// The frame time, for events that arrive between frames.
+  clock: f64,
 }
 
 impl MainScreen {
-  pub fn new(open: Box<OpenVault>) -> Self {
+  /// `pending`: the vault had changes Drive didn't get in an earlier session.
+  pub fn new(open: Box<OpenVault>, pending: bool) -> Self {
     Self {
       group: open.vault.root_group(),
       open,
@@ -237,6 +270,8 @@ impl MainScreen {
       close_pending: false,
       allow_close: false,
       uploading: false,
+      drive: DriveSync { pending, pending_saved: pending, needs_check: true, ..DriveSync::default() },
+      clock: 0.0,
     }
   }
 
@@ -252,14 +287,99 @@ impl MainScreen {
         match result {
           Ok(file) => {
             self.show_toast(cx.i18n.tr("toast-drive-uploaded"), false);
+            self.drive.pending = false;
+            self.drive.pending_saved = false;
+            self.drive.error = None;
+            self.drive.offline = false;
             return Some(Nav::LinkDrive { path, file });
           }
           Err(error) => self.show_toast(drive::error_message(cx.i18n, &error), true),
         }
       }
+      Event::VaultSynced { path, generation, local_changed, result } if path == self.open.path => {
+        return self.synced(generation, local_changed, result, cx);
+      }
       _ => {}
     }
     None
+  }
+
+  fn synced(&mut self, generation: u64, local_changed: bool, result: Result<SyncOutcome, keepsave_sync::SyncError>, cx: &ScreenCtx) -> Option<Nav> {
+    self.drive.in_flight = None;
+    let outcome = match result {
+      Ok(outcome) => outcome,
+      Err(error) => {
+        if drive::is_transient(&error) {
+          self.drive.offline = true;
+          self.drive.retry_at = Some(self.clock + SYNC_RETRY);
+        } else {
+          self.drive.error = Some(drive::error_message(cx.i18n, &error));
+          self.drive.failed_at = Some(self.save.changed);
+        }
+        return None;
+      }
+    };
+
+    // Edits made while the sync ran aren't on Drive yet.
+    let edited_since = self.save.changed > generation;
+    if let Some(remote) = &outcome.remote {
+      match self.open.vault.merge_from(remote) {
+        // Not a local change: it came from Drive, so it doesn't set `pending`.
+        Ok(summary) if !summary.is_empty() => {
+          self.save.mark_changed(self.clock);
+          self.show_toast(cx.i18n.tr_arg("toast-drive-merged", "count", summary.total()), false);
+        }
+        Ok(_) => {}
+        Err(error) => {
+          // Don't move the sync point: the next sync merges again.
+          self.drive.error = Some(error_message(cx.i18n, &error));
+          self.drive.failed_at = Some(self.save.changed);
+          return None;
+        }
+      }
+    }
+
+    let pending = edited_since || (local_changed && !outcome.uploaded);
+    self.drive.pending = pending;
+    self.drive.pending_saved = pending;
+    self.drive.offline = false;
+    self.drive.error = None;
+    self.drive.failed_at = None;
+    self.drive.last_synced = Some(chrono::Local::now().format("%H:%M").to_string());
+    Some(Nav::DriveSynced { path: self.open.path.clone(), file: outcome.file, pending })
+  }
+
+  /// Starts a sync when one is due and possible.
+  fn maybe_sync(&mut self, cx: &ScreenCtx, now: f64) {
+    let (Some(link), Some(client)) = (cx.config.drive_link(&self.open.path), cx.drive.client()) else {
+      return;
+    };
+    if self.drive.in_flight.is_some() || self.lock_pending || self.uploading {
+      return;
+    }
+    let after_change = self.drive.pending
+      && self.save.settled()
+      && now - self.save.last_change >= SYNC_DELAY
+      && self.drive.failed_at != Some(self.save.changed)
+      && !self.drive.offline;
+    let retry = self.drive.retry_at.is_some_and(|at| now >= at);
+    if !(self.drive.requested || self.drive.needs_check || after_change || retry) {
+      return;
+    }
+
+    let generation = self.save.changed;
+    let link = SyncLink { file_id: link.file_id.clone(), version: link.version.clone() };
+    cx.worker.sync_vault(client.clone(), self.vault().clone(), link, self.drive.pending, self.open.path.clone(), generation);
+    self.drive.in_flight = Some(generation);
+    self.drive.requested = false;
+    self.drive.needs_check = false;
+    self.drive.retry_at = None;
+  }
+
+  /// Records a change the user made to the vault.
+  fn local_change(&mut self, now: f64) {
+    self.save.mark_changed(now);
+    self.drive.pending = true;
   }
 
   fn saved(&mut self, generation: u64, result: Result<(), CoreError>, cx: &ScreenCtx) {
@@ -282,6 +402,7 @@ impl MainScreen {
 
   pub fn ui(&mut self, ui: &mut Ui, cx: &ScreenCtx) -> Option<Nav> {
     let now = ui.input(|input| input.time);
+    self.clock = now;
     let mut actions = Vec::new();
 
     if self.should_auto_lock(ui, cx, now) {
@@ -436,6 +557,11 @@ impl MainScreen {
     if let Some(wait) = self.clipboard.tick() {
       ui.ctx().request_repaint_after(wait);
     }
+    self.maybe_sync(cx, now);
+    if self.drive.pending && !self.drive.pending_saved && cx.config.drive_link(&self.open.path).is_some() {
+      self.drive.pending_saved = true;
+      return Some(Nav::DrivePending(self.open.path.clone()));
+    }
 
     if self.close_pending && self.save.settled() {
       self.allow_close = true;
@@ -587,7 +713,17 @@ impl MainScreen {
       Action::ConnectDrive => return Some(Nav::ConnectDrive),
       Action::CancelDrive => return Some(Nav::CancelDrive),
       Action::DisconnectDrive => return Some(Nav::DisconnectDrive),
-      Action::UnlinkDrive => return Some(Nav::UnlinkDrive(self.open.path.clone())),
+      Action::UnlinkDrive => {
+        self.drive.error = None;
+        self.drive.offline = false;
+        self.drive.retry_at = None;
+        return Some(Nav::UnlinkDrive(self.open.path.clone()));
+      }
+      Action::SyncNow => {
+        self.drive.requested = true;
+        self.drive.offline = false;
+        self.drive.error = None;
+      }
       Action::UploadToDrive => {
         let client = cx.drive.client()?.clone();
         self.uploading = true;
@@ -623,7 +759,7 @@ impl MainScreen {
   fn changed_with<T>(&mut self, result: Result<T, CoreError>, cx: &ScreenCtx, now: f64) -> Option<T> {
     match result {
       Ok(value) => {
-        self.save.mark_changed(now);
+        self.local_change(now);
         Some(value)
       }
       Err(error) => {
@@ -707,7 +843,7 @@ impl MainScreen {
     };
     match result {
       Ok(id) => {
-        self.save.mark_changed(now);
+        self.local_change(now);
         self.detail = None;
         self.select(id);
         self.scroll_to_selected = true;

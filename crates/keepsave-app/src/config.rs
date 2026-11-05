@@ -40,6 +40,9 @@ pub struct DriveLink {
   /// can tell whether the remote file changed.
   pub version: Option<String>,
   pub modified_time: Option<String>,
+  /// The local vault has changes Drive doesn't have yet.
+  #[serde(default)]
+  pub pending: bool,
 }
 
 impl Default for Config {
@@ -102,7 +105,23 @@ impl Config {
       name: file.name.clone(),
       version: file.version.clone(),
       modified_time: file.modified_time.clone(),
+      pending: false,
     });
+  }
+
+  /// Records a finished sync: Drive now holds `file`.
+  pub fn drive_synced(&mut self, path: &Path, file: &RemoteFile, pending: bool) {
+    if let Some(link) = self.drive_links.iter_mut().find(|link| link.path == path) {
+      link.version = file.version.clone();
+      link.modified_time = file.modified_time.clone();
+      link.pending = pending;
+    }
+  }
+
+  pub fn set_drive_pending(&mut self, path: &Path, pending: bool) {
+    if let Some(link) = self.drive_links.iter_mut().find(|link| link.path == path) {
+      link.pending = pending;
+    }
   }
 
   pub fn unlink_drive(&mut self, path: &Path) {
@@ -168,7 +187,14 @@ lock_after_minutes = 2
     assert_eq!(loaded.drive_links.len(), 1);
     assert_eq!(loaded.drive_link(Path::new("C:/v/Personal.kdbx")).unwrap().file_id, "b");
 
-    config.unlink_drive(Path::new("C:/v/Personal.kdbx"));
+    let vault = Path::new("C:/v/Personal.kdbx");
+    config.set_drive_pending(vault, true);
+    assert!(config.drive_link(vault).unwrap().pending);
+    config.drive_synced(vault, &file("b", Some("9")), false);
+    let link = config.drive_link(vault).unwrap();
+    assert_eq!((link.version.as_deref(), link.pending), (Some("9"), false));
+
+    config.unlink_drive(vault);
     assert!(config.drive_links.is_empty());
   }
 

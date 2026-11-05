@@ -3,7 +3,10 @@ use std::{fs, io::Write, path::Path};
 use keepass::{
   Database, DatabaseKey,
   config::DatabaseConfig,
-  db::{EntryId, GroupId, History, Times},
+  db::{
+    EntryId, GroupId, History, Times,
+    merge::{MergeEventType, MergeLog},
+  },
 };
 use secrecy::{ExposeSecret, SecretString};
 
@@ -15,6 +18,39 @@ const RECYCLE_BIN_NAME: &str = "Recycle Bin";
 const RECYCLE_BIN_ICON: usize = 43;
 const DEFAULT_HISTORY_MAX_ITEMS: isize = 10;
 const DEFAULT_HISTORY_MAX_SIZE: isize = 6 * 1024 * 1024;
+
+/// What a merge changed in the vault it was applied to.
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct MergeSummary {
+  pub created: usize,
+  pub updated: usize,
+  pub moved: usize,
+  pub deleted: usize,
+}
+
+impl MergeSummary {
+  fn from_log(log: &MergeLog) -> Self {
+    let mut summary = Self::default();
+    for event in &log.events {
+      match event.event_type {
+        MergeEventType::Created => summary.created += 1,
+        MergeEventType::Updated => summary.updated += 1,
+        MergeEventType::LocationUpdated => summary.moved += 1,
+        MergeEventType::Deleted => summary.deleted += 1,
+        _ => summary.updated += 1,
+      }
+    }
+    summary
+  }
+
+  pub fn total(&self) -> usize {
+    self.created + self.updated + self.moved + self.deleted
+  }
+
+  pub fn is_empty(&self) -> bool {
+    self.total() == 0
+  }
+}
 
 /// An unlocked KDBX4 vault together with the master password needed to save it.
 ///
@@ -49,6 +85,42 @@ impl Vault {
   pub fn from_bytes(bytes: &[u8], password: SecretString) -> Result<Self> {
     let db = Database::parse(bytes, key_for(&password))?;
     Ok(Self { db, password })
+  }
+
+  /// Decrypts another copy of this vault, e.g. the one on Drive, with this
+  /// vault's master password. A copy with another password fails with
+  /// [`CoreError::InvalidKey`].
+  pub fn open_sibling(&self, bytes: &[u8]) -> Result<Self> {
+    Self::from_bytes(bytes, self.password.clone())
+  }
+
+  /// Merges `other` (another copy of the same vault) into this one, KeePass
+  /// style: by UUID and modification time, honoring deletions, and keeping
+  /// the losing version of an entry in its history.
+  pub fn merge_from(&mut self, other: &Vault) -> Result<MergeSummary> {
+    let log = self.db.merge(&other.db).map_err(|error| CoreError::Merge(error.to_string()))?;
+    // The merge leaves `meta` alone. If the bin was first created on the
+    // other side, adopt it, or the next deletion would create a second bin.
+    if self.recycle_bin().is_none()
+      && let Some(bin) = other.recycle_bin()
+      && self.db.group(bin).is_some()
+    {
+      self.db.meta.recyclebin_enabled = Some(true);
+      self.db.meta.recyclebin_uuid = Some(bin.uuid());
+      self.db.meta.recyclebin_changed = other.db.meta.recyclebin_changed;
+    }
+    // The merge combines both histories; keep them within the limit.
+    if let Some(max) = self.history_max_items() {
+      let ids: Vec<EntryId> = self.db.iter_all_entries().map(|entry| entry.id()).collect();
+      for id in ids {
+        if let Some(mut entry) = self.db.entry_mut(id)
+          && let Some(history) = entry.history.as_mut()
+        {
+          trim_history(history, max);
+        }
+      }
+    }
+    Ok(MergeSummary::from_log(&log))
   }
 
   pub fn to_bytes(&self) -> Result<Vec<u8>> {
@@ -354,4 +426,145 @@ fn trim_history(history: &mut History, max: usize) {
     trimmed.add_entry(version.clone());
   }
   *history = trimmed;
+}
+
+#[cfg(test)]
+mod merge_tests {
+  use chrono::{Duration, NaiveDateTime};
+
+  use super::*;
+
+  fn base() -> Vault {
+    Vault::create("Shared", SecretString::from("pw"), KdfParams::insecure_fast())
+  }
+
+  fn entry(title: &str) -> EntryData {
+    EntryData { title: title.into(), password: SecretString::from("secret"), ..EntryData::default() }
+  }
+
+  /// Timestamps have one-second resolution, so tests set them explicitly.
+  fn at(seconds: i64) -> NaiveDateTime {
+    Times::now() + Duration::seconds(seconds)
+  }
+
+  fn set_modified(vault: &mut Vault, id: EntryId, time: NaiveDateTime) {
+    vault.db.entry_mut(id).unwrap().times.last_modification = Some(time);
+  }
+
+  fn titles(vault: &Vault) -> Vec<String> {
+    let mut titles: Vec<String> = vault.db.iter_all_entries().map(|entry| entry.get_title().unwrap_or_default().to_owned()).collect();
+    titles.sort();
+    titles
+  }
+
+  #[test]
+  fn entries_added_on_both_sides_are_kept() {
+    let base = base();
+    let (mut local, mut remote) = (base.clone(), base.clone());
+    local.add_entry(local.root_group(), &entry("Local")).unwrap();
+    remote.add_entry(remote.root_group(), &entry("Remote")).unwrap();
+
+    let summary = local.merge_from(&remote).unwrap();
+    assert_eq!(summary.created, 1);
+    assert_eq!(titles(&local), ["Local", "Remote"]);
+  }
+
+  #[test]
+  fn the_newer_edit_wins_and_the_other_goes_to_history() {
+    let mut base = base();
+    let id = base.add_entry(base.root_group(), &entry("Mail")).unwrap();
+    set_modified(&mut base, id, at(-100));
+    let (mut local, mut remote) = (base.clone(), base.clone());
+
+    local.update_entry(id, &EntryData { title: "Mail (local)".into(), ..entry("") }).unwrap();
+    set_modified(&mut local, id, at(-50));
+    remote.update_entry(id, &EntryData { title: "Mail (remote)".into(), ..entry("") }).unwrap();
+    set_modified(&mut remote, id, at(-10));
+
+    local.merge_from(&remote).unwrap();
+    assert_eq!(local.entry(id).unwrap().title, "Mail (remote)");
+    let history: Vec<String> = local.entry_history(id).unwrap().into_iter().map(|item| item.data.title).collect();
+    assert!(history.contains(&"Mail (local)".to_owned()), "{history:?}");
+
+    // The other way round, the local edit stays and the remote one is filed.
+    let (mut local, mut remote) = (base.clone(), base.clone());
+    local.update_entry(id, &EntryData { title: "Newer".into(), ..entry("") }).unwrap();
+    set_modified(&mut local, id, at(-10));
+    remote.update_entry(id, &EntryData { title: "Older".into(), ..entry("") }).unwrap();
+    set_modified(&mut remote, id, at(-50));
+    local.merge_from(&remote).unwrap();
+    assert_eq!(local.entry(id).unwrap().title, "Newer");
+    let history: Vec<String> = local.entry_history(id).unwrap().into_iter().map(|item| item.data.title).collect();
+    assert!(history.contains(&"Older".to_owned()), "{history:?}");
+  }
+
+  #[test]
+  fn permanent_deletions_propagate() {
+    let mut base = base();
+    let id = base.add_entry(base.root_group(), &entry("Old")).unwrap();
+    set_modified(&mut base, id, at(-100));
+    let (mut local, mut remote) = (base.clone(), base.clone());
+
+    remote.delete_entry(id).unwrap(); // to the bin
+    remote.delete_entry(id).unwrap(); // for good
+    local.merge_from(&remote).unwrap();
+    assert!(local.entry(id).is_none());
+  }
+
+  #[test]
+  fn an_edit_after_a_remote_deletion_keeps_the_entry() {
+    let mut base = base();
+    let id = base.add_entry(base.root_group(), &entry("Keep")).unwrap();
+    set_modified(&mut base, id, at(-100));
+    let (mut local, mut remote) = (base.clone(), base.clone());
+
+    remote.delete_entry(id).unwrap();
+    remote.delete_entry(id).unwrap();
+    for time in remote.db.deleted_objects.values_mut() {
+      *time = Some(at(-60));
+    }
+    local.update_entry(id, &EntryData { title: "Keep (edited)".into(), ..entry("") }).unwrap();
+    set_modified(&mut local, id, at(-10));
+
+    local.merge_from(&remote).unwrap();
+    assert_eq!(local.entry(id).unwrap().title, "Keep (edited)");
+  }
+
+  #[test]
+  fn moves_to_the_recycle_bin_propagate() {
+    let mut base = base();
+    let id = base.add_entry(base.root_group(), &entry("Trash me")).unwrap();
+    base.db.entry_mut(id).unwrap().times.location_changed = Some(at(-100));
+    let (mut local, mut remote) = (base.clone(), base.clone());
+
+    remote.delete_entry(id).unwrap();
+    remote.db.entry_mut(id).unwrap().times.location_changed = Some(at(-10));
+    local.merge_from(&remote).unwrap();
+
+    let bin = local.recycle_bin().expect("the bin came over with the merge");
+    assert_eq!(local.entry_summary(id).unwrap().group, bin);
+  }
+
+  #[test]
+  fn merged_history_stays_within_the_limit() {
+    let mut base = base();
+    let id = base.add_entry(base.root_group(), &entry("v0")).unwrap();
+    let (mut local, mut remote) = (base.clone(), base.clone());
+    for (side, offset) in [(&mut local, 0), (&mut remote, 1)] {
+      for version in 0..8 {
+        side.update_entry(id, &EntryData { title: format!("v{offset}-{version}"), ..entry("") }).unwrap();
+        set_modified(side, id, at(-200 + version * 10 + offset));
+      }
+    }
+    local.merge_from(&remote).unwrap();
+    assert!(local.entry_history(id).unwrap().len() <= 10);
+  }
+
+  #[test]
+  fn a_copy_with_another_password_is_rejected() {
+    let vault = base();
+    let other = Vault::create("Shared", SecretString::from("different"), KdfParams::insecure_fast());
+    let error = vault.open_sibling(&other.to_bytes().unwrap()).err().unwrap();
+    assert!(matches!(error, CoreError::InvalidKey));
+  }
 }

@@ -56,8 +56,15 @@ pub fn error_message(i18n: &I18n, error: &SyncError) -> String {
     SyncError::TimedOut => i18n.tr("drive-error-timeout"),
     SyncError::Reauthorize => i18n.tr("drive-error-reauthorize"),
     SyncError::Network(_) => i18n.tr("drive-error-network"),
+    SyncError::RemoteMissing => i18n.tr("drive-error-missing"),
+    SyncError::Vault(keepsave_core::CoreError::InvalidKey) => i18n.tr("drive-error-password"),
     other => i18n.tr_arg("error-generic", "details", other.to_string()),
   }
+}
+
+/// Errors worth retrying on their own: the network or Google's servers.
+pub fn is_transient(error: &SyncError) -> bool {
+  matches!(error, SyncError::Network(_)) || matches!(error, SyncError::Http { status, .. } if *status >= 500 || *status == 429)
 }
 
 /// "1.2 MB · 2026-11-04 10:00", or whatever part is known.

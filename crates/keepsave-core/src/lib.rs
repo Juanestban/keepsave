@@ -11,7 +11,7 @@ pub use entry::{CustomField, EntryData, EntrySummary, GroupSummary, HistoryItem}
 pub use error::{CoreError, Result};
 pub use kdf::KdfParams;
 pub use keepass::db::{EntryId, GroupId};
-pub use vault::Vault;
+pub use vault::{MergeSummary, Vault};
 
 /// Re-exported so callers can build secrets without depending on `secrecy`.
 pub use secrecy::{ExposeSecret, SecretString};

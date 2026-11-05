@@ -2141,6 +2141,7 @@ name = "keepsave-sync"
 version = "0.3.0"
 dependencies = [
  "base64 0.23.1",
+ "chrono",
  "keepsave-core",
  "keyring",
  "rand",

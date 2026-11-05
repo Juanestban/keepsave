@@ -8,7 +8,7 @@ repository.workspace = true
 authors.workspace = true
 
 [dependencies]
-keepass = { version = "0.17", features = ["save_kdbx4"] }
+keepass = { version = "0.17", features = ["save_kdbx4", "_merge"] }
 chrono = "0.4"
 rust-argon2 = "3"
 rand = "0.10"

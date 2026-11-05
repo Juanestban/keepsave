@@ -12,7 +12,7 @@ use std::sync::Arc;
 
 use eframe::egui;
 use keepsave_core::{CoreError, KdfParams, SecretString, Vault};
-use keepsave_sync::{BrowserPage, Credentials, DriveClient, RemoteFile, RemoteStore, SyncError};
+use keepsave_sync::{BrowserPage, Credentials, DriveClient, RemoteFile, RemoteStore, SyncError, SyncLink, SyncOutcome};
 use tokio::{runtime::Runtime, task::AbortHandle};
 
 /// An unlocked vault and the file it lives in.
@@ -46,6 +46,13 @@ pub enum Event {
     result: Result<RemoteFile, SyncError>,
   },
   DriveDisconnected,
+  VaultSynced {
+    path: PathBuf,
+    /// The autosave generation of the snapshot that was synced.
+    generation: u64,
+    local_changed: bool,
+    result: Result<SyncOutcome, SyncError>,
+  },
 }
 
 impl Event {
@@ -55,7 +62,8 @@ impl Event {
       Event::DriveConnected(Err(error))
       | Event::DriveFilesListed(Err(error))
       | Event::DriveDownloaded { result: Err(error), .. }
-      | Event::DriveUploaded { result: Err(error), .. } => Some(error),
+      | Event::DriveUploaded { result: Err(error), .. }
+      | Event::VaultSynced { result: Err(error), .. } => Some(error),
       _ => None,
     }
   }
@@ -178,6 +186,14 @@ impl Worker {
       }
       .await;
       Event::DriveUploaded { path, result }
+    });
+  }
+
+  /// Merges the Drive copy into `snapshot` and uploads what Drive lacks.
+  pub fn sync_vault(&self, client: Arc<DriveClient>, snapshot: Vault, link: SyncLink, local_changed: bool, path: PathBuf, generation: u64) {
+    self.spawn(async move {
+      let result = keepsave_sync::sync_vault(&*client, snapshot, &link, local_changed, chrono::Utc::now()).await;
+      Event::VaultSynced { path, generation, local_changed, result }
     });
   }
 
