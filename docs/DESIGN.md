@@ -239,10 +239,14 @@ branding or assets from any existing product.
      The root lists its own entries; any other group, and the bin, also list
      the entries of deeper groups (which the sidebar doesn't show), labeled
      with their group.
-   - **Detail:** view mode with copy, reveal and open-URL actions, tags,
-     custom fields and history with restore; edit mode with every field, the
-     group, custom fields (plain or protected) and the inline generator.
-     Leaving an edited entry asks before discarding changes.
+   - **Detail:** the side panel shows an entry, with copy, reveal and
+     open-URL actions, tags, custom fields and history with restore.
+   - **Editor:** creating or editing an entry opens a wide modal (up to
+     780 px) so the fields have room: Title | Username, Password | URL,
+     the inline generator full width, Group | Tags, Notes, then custom
+     fields one per row (name, value, protect, remove). Cancel and Save sit
+     at the bottom right. Clicking outside, Esc or Cancel asks before
+     discarding changes.
    - On narrow windows the detail panel overlaps the list instead of
      squeezing it.
    - **Autosave:** every change is saved on the worker about 1 s after the

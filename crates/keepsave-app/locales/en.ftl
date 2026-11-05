@@ -108,6 +108,7 @@ field-tags = Tags
 field-tags-hint = Separate tags with commas.
 field-group = Group
 field-custom = Custom fields
+field-custom-empty = No custom fields. Add one for things like a PIN or recovery codes.
 field-add = Add field
 field-name = Field name
 field-protect = Protect this value

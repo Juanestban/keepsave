@@ -1,8 +1,10 @@
-//! The panel on the right: an entry's fields with copy and reveal actions,
-//! or the form that edits them.
+//! The panel on the right with an entry's fields and their copy and reveal
+//! actions, and the modal form that edits an entry.
 
 use chrono::{Local, NaiveDateTime, TimeZone};
-use eframe::egui::{Align, ComboBox, CornerRadius, Frame, Id, Label, Layout, Margin, Rect, RichText, ScrollArea, Sense, Stroke, Ui, Vec2};
+use eframe::egui::{
+  self, Align, Color32, ComboBox, CornerRadius, Frame, Id, Label, Layout, Margin, Modal, Rect, RichText, ScrollArea, Sense, Stroke, Ui, Vec2,
+};
 use egui_phosphor::regular as icon;
 use keepsave_core::{
   CustomField, EntryData, EntryId, EntrySummary, ExposeSecret, GroupId, HistoryItem, SecretString, Vault, generator::estimate_entropy_bits,
@@ -219,19 +221,14 @@ pub fn show(ui: &mut Ui, rect: Rect, overlay: bool, open: f32, screen: &mut Main
   ui.interact(rect, Id::new("main-detail-blocker"), Sense::click());
 
   let generation = screen.save.changed;
-  let groups: Vec<(GroupId, String)> =
-    screen.lists.as_ref().map(|lists| lists.groups.iter().map(|group| (group.id, group.name.clone())).collect()).unwrap_or_default();
   let vault = &screen.open.vault;
-  let Some(detail) = &mut screen.detail else {
+  let Some(Detail::View(view)) = &mut screen.detail else {
     return;
   };
 
   crate::widgets::glass_panel(ui, rect, fill, "main-detail", |ui| {
     ui.multiply_opacity(open);
-    match detail {
-      Detail::View(view) => view_ui(ui, view, vault, generation, cx, actions),
-      Detail::Edit(draft) => edit_ui(ui, draft, vault, &groups, cx, actions),
-    }
+    view_ui(ui, view, vault, generation, cx, actions);
   });
 }
 
@@ -448,7 +445,47 @@ fn local_time(time: NaiveDateTime) -> String {
 
 // ---- edit ----
 
-fn edit_ui(ui: &mut Ui, draft: &mut Draft, vault: &Vault, groups: &[(GroupId, String)], cx: &ScreenCtx, actions: &mut Vec<Action>) {
+const FIELD_GAP: f32 = 14.0;
+const COLUMN_GAP: f32 = 20.0;
+const EDITOR_WIDTH: f32 = 780.0;
+
+/// The entry form, in a modal over the main screen. Clicking the backdrop or
+/// pressing Esc cancels, which asks first if something changed.
+pub fn show_editor(ui: &Ui, screen: &mut MainScreen, cx: &ScreenCtx, actions: &mut Vec<Action>) {
+  let groups: Vec<(GroupId, String)> =
+    screen.lists.as_ref().map(|lists| lists.groups.iter().map(|group| (group.id, group.name.clone())).collect()).unwrap_or_default();
+  let vault = &screen.open.vault;
+  let Some(Detail::Edit(draft)) = &mut screen.detail else {
+    return;
+  };
+
+  let screen_rect = ui.ctx().content_rect();
+  let width = EDITOR_WIDTH.min(screen_rect.width() - 64.0);
+  let body_height = (screen_rect.height() - 230.0).max(160.0);
+  let frame = Frame::new()
+    .fill(theme::GLASS_FILL_SOLID)
+    .stroke(Stroke::new(1.0, theme::GLASS_STROKE))
+    .corner_radius(CornerRadius::same(theme::RADIUS_PANEL))
+    .inner_margin(Margin::same(28));
+
+  let modal = Modal::new(Id::new("entry-editor")).frame(frame).backdrop_color(Color32::from_black_alpha(140)).show(ui.ctx(), |ui| {
+    ui.set_width(width);
+    editor_header(ui, draft, cx, actions);
+    ui.add_space(12.0);
+    ScrollArea::vertical().id_salt("entry-editor-body").max_height(body_height).auto_shrink([false, true]).show(ui, |ui| {
+      // Keep the right edge clear of the scrollbar.
+      ui.set_width(ui.available_width() - 12.0);
+      form(ui, draft, vault, &groups, cx);
+    });
+    ui.add_space(16.0);
+    editor_footer(ui, cx, actions);
+  });
+  if modal.backdrop_response.clicked() {
+    actions.push(Action::CancelEdit);
+  }
+}
+
+fn editor_header(ui: &mut Ui, draft: &Draft, cx: &ScreenCtx, actions: &mut Vec<Action>) {
   let tr = |key| cx.i18n.tr(key);
   let heading = if draft.id.is_some() { tr("edit-title") } else { tr("edit-new-title") };
   let row = Vec2::new(ui.available_width(), 40.0);
@@ -457,13 +494,20 @@ fn edit_ui(ui: &mut Ui, draft: &mut Draft, vault: &Vault, groups: &[(GroupId, St
       actions.push(Action::CancelEdit);
     }
     ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
-      ui.label(RichText::new(icon::NOTE_PENCIL).font(theme::icon_font(20.0)).color(theme::ACCENT));
-      ui.label(RichText::new(heading).font(theme::heading(18.0)).color(theme::TEXT));
+      ui.label(RichText::new(icon::NOTE_PENCIL).font(theme::icon_font(22.0)).color(theme::ACCENT));
+      ui.label(RichText::new(heading).font(theme::heading(20.0)).color(theme::TEXT));
     });
   });
-  ui.add_space(8.0);
+}
 
-  ui.with_layout(Layout::bottom_up(Align::Min), |ui| {
+/// Cancel and Save, aligned to the right.
+fn editor_footer(ui: &mut Ui, cx: &ScreenCtx, actions: &mut Vec<Action>) {
+  let tr = |key| cx.i18n.tr(key);
+  let row = Vec2::new(ui.available_width(), theme::CONTROL_HEIGHT);
+  ui.allocate_ui_with_layout(row, Layout::right_to_left(Align::Center), |ui| {
+    // Line up with the form, which keeps clear of its scrollbar.
+    ui.add_space(12.0);
+    ui.set_max_width(320.0);
     let (cancel, save) = button_pair(ui, ActionButton::new(tr("edit-cancel")), ActionButton::new(tr("edit-save")).icon(icon::CHECK).primary());
     if cancel.clicked() {
       actions.push(Action::CancelEdit);
@@ -471,73 +515,105 @@ fn edit_ui(ui: &mut Ui, draft: &mut Draft, vault: &Vault, groups: &[(GroupId, St
     if save.clicked() {
       actions.push(Action::SaveDraft);
     }
-    ui.add_space(6.0);
+  });
+}
 
-    ui.with_layout(Layout::top_down(Align::Min), |ui| {
-      ScrollArea::vertical().id_salt("detail-edit").auto_shrink([false, false]).show(ui, |ui| {
-        // Keep the right edge clear of the scrollbar.
-        ui.set_width(ui.available_width() - 6.0);
-        form(ui, draft, vault, groups, cx);
-      });
+/// Two fields side by side, each in half the width.
+fn pair(ui: &mut Ui, left: impl FnOnce(&mut Ui), right: impl FnOnce(&mut Ui)) {
+  ui.scope(|ui| {
+    let spacing = ui.spacing().item_spacing.x;
+    // `columns` uses the item spacing as the gap between columns; the
+    // widgets inside keep the normal spacing.
+    ui.spacing_mut().item_spacing.x = COLUMN_GAP;
+    ui.columns(2, |columns| {
+      for column in columns.iter_mut() {
+        column.spacing_mut().item_spacing.x = spacing;
+      }
+      left(&mut columns[0]);
+      right(&mut columns[1]);
     });
   });
+  ui.add_space(FIELD_GAP);
 }
 
 fn form(ui: &mut Ui, draft: &mut Draft, vault: &Vault, groups: &[(GroupId, String)], cx: &ScreenCtx) {
   let tr = |key| cx.i18n.tr(key);
 
-  field_label(ui, &tr("field-title"));
-  let title = text_field(ui, Id::new("draft-title"), &mut draft.title, true);
-  if std::mem::take(&mut draft.focus_title) {
-    title.request_focus();
-  }
-  ui.add_space(4.0);
+  pair(
+    ui,
+    |ui| {
+      field_label(ui, &tr("field-title"));
+      let title = text_field(ui, Id::new("draft-title"), &mut draft.title, true);
+      if std::mem::take(&mut draft.focus_title) {
+        title.request_focus();
+      }
+    },
+    |ui| {
+      field_label(ui, &tr("field-username"));
+      text_field(ui, Id::new("draft-username"), &mut draft.username, true);
+    },
+  );
 
-  field_label(ui, &tr("field-username"));
-  text_field(ui, Id::new("draft-username"), &mut draft.username, true);
-  ui.add_space(4.0);
-
-  let open = draft.generator.is_some();
-  let toggle = label_row(ui, &tr("field-password"), |ui| {
-    if open { link(ui, &tr("gen-hide")).clicked() } else { icon_link(ui, icon::DICE_FIVE, &tr("gen-toggle")).clicked() }
-  });
-  if toggle {
+  let mut toggle_generator = false;
+  pair(
+    ui,
+    |ui| {
+      let open = draft.generator.is_some();
+      toggle_generator = label_row(ui, &tr("field-password"), |ui| {
+        if open { link(ui, &tr("gen-hide")).clicked() } else { icon_link(ui, icon::DICE_FIVE, &tr("gen-toggle")).clicked() }
+      });
+      password_field(ui, Id::new("draft-password"), &mut draft.password, &mut draft.reveal, true, (&tr("reveal-show"), &tr("reveal-hide")));
+      ui.add_space(4.0);
+      let bits = estimate_entropy_bits(&draft.password);
+      let labels = [tr("strength-weak"), tr("strength-fair"), tr("strength-good"), tr("strength-strong")];
+      strength_meter(ui, bits, labels.each_ref().map(String::as_str), &cx.i18n.tr_arg("strength-bits", "bits", bits.round() as i64));
+    },
+    |ui| {
+      // Matches the height of the password's label row.
+      label_row(ui, &tr("field-url"), |_| {});
+      text_field(ui, Id::new("draft-url"), &mut draft.url, true);
+    },
+  );
+  if toggle_generator {
     draft.generator = match draft.generator {
       Some(_) => None,
       None => Some(Generator::new()),
     };
   }
-  password_field(ui, Id::new("draft-password"), &mut draft.password, &mut draft.reveal, true, (&tr("reveal-show"), &tr("reveal-hide")));
-  ui.add_space(2.0);
-  let bits = estimate_entropy_bits(&draft.password);
-  let labels = [tr("strength-weak"), tr("strength-fair"), tr("strength-good"), tr("strength-strong")];
-  strength_meter(ui, bits, labels.each_ref().map(String::as_str), &cx.i18n.tr_arg("strength-bits", "bits", bits.round() as i64));
-  if let Some(generator) = &mut draft.generator
-    && let Some(value) = generator.ui(ui, cx.i18n)
-  {
-    draft.password = value;
-    draft.generator = None;
+  if let Some(generator) = &mut draft.generator {
+    if let Some(value) = generator.ui(ui, cx.i18n) {
+      draft.password = value;
+      draft.generator = None;
+    }
+    ui.add_space(FIELD_GAP);
   }
-  ui.add_space(4.0);
 
-  field_label(ui, &tr("field-url"));
-  text_field(ui, Id::new("draft-url"), &mut draft.url, true);
-  ui.add_space(4.0);
+  pair(
+    ui,
+    |ui| {
+      field_label(ui, &tr("field-group"));
+      group_combo(ui, &mut draft.group, vault, groups, cx);
+    },
+    |ui| {
+      field_label(ui, &tr("field-tags"));
+      text_field(ui, Id::new("draft-tags"), &mut draft.tags, true);
+      ui.label(RichText::new(tr("field-tags-hint")).small().color(theme::TEXT_FAINT));
+    },
+  );
 
   field_label(ui, &tr("field-notes"));
-  multiline_field(ui, Id::new("draft-notes"), &mut draft.notes, 3);
+  multiline_field(ui, Id::new("draft-notes"), &mut draft.notes, 4);
+  ui.add_space(FIELD_GAP + 4.0);
+
+  label_row(ui, &tr("field-custom"), |ui| {
+    if icon_link(ui, icon::PLUS, &tr("field-add")).clicked() {
+      draft.fields.push(DraftField { key: String::new(), value: Zeroizing::default(), protected: false, reveal: false });
+    }
+  });
   ui.add_space(4.0);
-
-  field_label(ui, &tr("field-tags"));
-  text_field(ui, Id::new("draft-tags"), &mut draft.tags, true);
-  ui.label(RichText::new(tr("field-tags-hint")).small().color(theme::TEXT_FAINT));
-  ui.add_space(4.0);
-
-  field_label(ui, &tr("field-group"));
-  group_combo(ui, draft, vault, groups, cx);
-  ui.add_space(10.0);
-
-  field_label(ui, &tr("field-custom"));
+  if draft.fields.is_empty() {
+    ui.label(RichText::new(tr("field-custom-empty")).small().color(theme::TEXT_FAINT));
+  }
   let mut remove = None;
   for (index, field) in draft.fields.iter_mut().enumerate() {
     custom_field_ui(ui, index, field, cx, &mut remove);
@@ -545,62 +621,67 @@ fn form(ui: &mut Ui, draft: &mut Draft, vault: &Vault, groups: &[(GroupId, Strin
   if let Some(index) = remove {
     draft.fields.remove(index);
   }
-  if icon_link(ui, icon::PLUS, &tr("field-add")).clicked() {
-    draft.fields.push(DraftField { key: String::new(), value: Zeroizing::default(), protected: false, reveal: false });
-  }
 
   if let Some(error) = &draft.error {
-    ui.add_space(6.0);
+    ui.add_space(FIELD_GAP);
     notice(ui, icon::WARNING_CIRCLE, error, theme::DANGER);
   }
-  ui.add_space(8.0);
 }
 
-fn group_combo(ui: &mut Ui, draft: &mut Draft, vault: &Vault, groups: &[(GroupId, String)], cx: &ScreenCtx) {
+fn group_combo(ui: &mut Ui, group: &mut GroupId, vault: &Vault, groups: &[(GroupId, String)], cx: &ScreenCtx) {
   let current = groups
     .iter()
-    .find(|(id, _)| *id == draft.group)
+    .find(|(id, _)| *id == *group)
     .map(|(_, name)| name.clone())
-    .or_else(|| {
-      if Some(draft.group) == vault.recycle_bin() { Some(cx.i18n.tr("main-recycle-bin")) } else { vault.group(draft.group).map(|group| group.name) }
-    })
+    .or_else(|| if Some(*group) == vault.recycle_bin() { Some(cx.i18n.tr("main-recycle-bin")) } else { vault.group(*group).map(|found| found.name) })
     .unwrap_or_default();
+  ui.spacing_mut().interact_size.y = theme::CONTROL_HEIGHT - 2.0;
   ComboBox::from_id_salt("draft-group").selected_text(current).width(ui.available_width()).height(260.0).show_ui(ui, |ui| {
     for (id, name) in groups {
-      ui.selectable_value(&mut draft.group, *id, name);
+      ui.selectable_value(group, *id, name);
     }
   });
 }
 
+/// One custom field on a row: name, value, protect and remove.
 fn custom_field_ui(ui: &mut Ui, index: usize, field: &mut DraftField, cx: &ScreenCtx, remove: &mut Option<usize>) {
   let tr = |key| cx.i18n.tr(key);
   let id = Id::new(("draft-field", index));
-  Frame::new()
-    .fill(theme::GLASS_FILL)
-    .stroke(Stroke::new(1.0, theme::GLASS_STROKE))
-    .corner_radius(CornerRadius::same(14))
-    .inner_margin(Margin::same(10))
-    .show(ui, |ui| {
-      let caption = if field.key.trim().is_empty() { tr("field-name") } else { field.key.clone() };
-      label_row(ui, &caption, |ui| {
-        if icon_button(ui, icon::X, &tr("field-remove")).clicked() {
-          *remove = Some(index);
-        }
-        let (glyph, tooltip) =
-          if field.protected { (icon::LOCK_SIMPLE, tr("field-unprotect")) } else { (icon::LOCK_SIMPLE_OPEN, tr("field-protect")) };
-        if icon_button(ui, glyph, &tooltip).clicked() {
-          field.protected = !field.protected;
+  let row = Vec2::new(ui.available_width(), theme::CONTROL_HEIGHT);
+  ui.allocate_ui_with_layout(row, Layout::right_to_left(Align::Center), |ui| {
+    ui.spacing_mut().item_spacing.x = 8.0;
+    if icon_button(ui, icon::X, &tr("field-remove")).clicked() {
+      *remove = Some(index);
+    }
+    let (glyph, tooltip) = if field.protected { (icon::LOCK_SIMPLE, tr("field-unprotect")) } else { (icon::LOCK_SIMPLE_OPEN, tr("field-protect")) };
+    if icon_button(ui, glyph, &tooltip).clicked() {
+      field.protected = !field.protected;
+    }
+    ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
+      let rest = ui.available_width() - 12.0;
+      let name_width = rest * 0.36;
+      ui.allocate_ui(Vec2::new(name_width, theme::CONTROL_HEIGHT), |ui| {
+        let response = text_field(ui, id.with("key"), &mut field.key, true);
+        if field.key.is_empty() && !response.has_focus() {
+          ui.painter().text(
+            response.rect.left_center(),
+            egui::Align2::LEFT_CENTER,
+            tr("field-name"),
+            egui::FontId::proportional(15.0),
+            theme::TEXT_FAINT,
+          );
         }
       });
-      text_field(ui, id.with("key"), &mut field.key, true);
-      ui.add_space(2.0);
-      if field.protected {
-        password_field(ui, id.with("value"), &mut field.value, &mut field.reveal, true, (&tr("reveal-show"), &tr("reveal-hide")));
-      } else {
-        text_field(ui, id.with("value"), &mut field.value, true);
-      }
+      ui.allocate_ui(Vec2::new(rest - name_width, theme::CONTROL_HEIGHT), |ui| {
+        if field.protected {
+          password_field(ui, id.with("value"), &mut field.value, &mut field.reveal, true, (&tr("reveal-show"), &tr("reveal-hide")));
+        } else {
+          text_field(ui, id.with("value"), &mut field.value, true);
+        }
+      });
     });
-  ui.add_space(6.0);
+  });
+  ui.add_space(8.0);
 }
 
 #[cfg(test)]

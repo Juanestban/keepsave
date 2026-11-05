@@ -108,6 +108,7 @@ field-tags = Etiquetas
 field-tags-hint = Separa las etiquetas con comas.
 field-group = Grupo
 field-custom = Campos personalizados
+field-custom-empty = Sin campos personalizados. Añade uno para cosas como un PIN o códigos de recuperación.
 field-add = Añadir campo
 field-name = Nombre del campo
 field-protect = Proteger este valor

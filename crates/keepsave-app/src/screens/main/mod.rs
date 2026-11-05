@@ -295,13 +295,16 @@ impl MainScreen {
     self.refresh_lists();
 
     let area = ui.available_rect_before_wrap().shrink(MARGIN).translate(Vec2::new(0.0, cx.lift));
-    let regions = Regions::compute(ui, area, self.detail.is_some());
+    // Editing happens in a modal, so the panel only shows an entry.
+    let regions = Regions::compute(ui, area, matches!(self.detail, Some(Detail::View(_))));
     sidebar::show(ui, regions.sidebar, self, cx, &mut actions);
     self.top_bar(ui, regions.top_bar, cx, &mut actions);
     list::show(ui, regions.list, self, cx, &mut actions);
     if let Some(rect) = regions.detail {
       detail::show(ui, rect, regions.overlay, regions.open, self, cx, &mut actions);
     }
+    // Before the dialogs, so a discard confirmation stacks on top.
+    detail::show_editor(ui, self, cx, &mut actions);
     dialogs::show(ui, self, cx, &mut actions);
     self.paint_toast(ui, now);
 
@@ -352,7 +355,7 @@ impl MainScreen {
     let mut clear_search = false;
 
     ui.input_mut(|input| {
-      if input.consume_key(Modifiers::COMMAND, Key::F) {
+      if !editing && input.consume_key(Modifiers::COMMAND, Key::F) {
         self.focus_search = true;
       }
       if input.consume_key(Modifiers::COMMAND, Key::S) {
