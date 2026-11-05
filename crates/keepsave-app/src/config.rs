@@ -27,6 +27,8 @@ pub struct Config {
   pub clipboard_clear_seconds: u32,
   /// Off draws a still frame and stops the constant repaint.
   pub animated_background: bool,
+  /// Look for a new version at startup and every few hours.
+  pub check_for_updates: bool,
   /// Local vaults that have a copy on Google Drive. Kept last: TOML writes
   /// arrays of tables after plain values.
   pub drive_links: Vec<DriveLink>,
@@ -57,6 +59,7 @@ impl Default for Config {
       lock_on_os_sleep: true,
       clipboard_clear_seconds: 15,
       animated_background: true,
+      check_for_updates: true,
       drive_links: Vec::new(),
     }
   }
@@ -169,6 +172,7 @@ lock_after_minutes = 2
     assert!(config.lock_on_minimize);
     assert_eq!(config.clipboard_clear_seconds, 15);
     assert!(config.animated_background);
+    assert!(config.check_for_updates);
   }
 
   #[test]

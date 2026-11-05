@@ -12,7 +12,7 @@ bidirectionally through Google Drive.
 - Repo: <https://github.com/Juanestban/keepsave>
 - License: MIT OR Apache-2.0
 - **Read first:** [docs/DESIGN.md](docs/DESIGN.md) for every design decision
-  (Q1–Q23) and [ROADMAP.md](ROADMAP.md) for current progress.
+  (Q1–Q24) and [ROADMAP.md](ROADMAP.md) for current progress.
 
 ## Layout (target, from M1)
 

@@ -80,6 +80,10 @@ pub enum Nav {
     pending: bool,
   },
   DrivePending(PathBuf),
+  CheckForUpdates,
+  DownloadUpdate,
+  /// Locks the vault if one is open, then restarts into the new version.
+  RestartToUpdate,
 }
 
 pub fn error_message(i18n: &I18n, error: &CoreError) -> String {

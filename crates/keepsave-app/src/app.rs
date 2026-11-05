@@ -14,6 +14,7 @@ use crate::{
   i18n::{I18n, Language},
   screens::{CreateVault, DriveImport, MainScreen, Nav, ScreenCtx, Settings, SettingsCtx, SettingsRequest, Unlock, Welcome},
   session, theme,
+  update::Updater,
   widgets::icon_button,
   worker::{Event, Worker},
 };
@@ -46,6 +47,7 @@ pub struct KeepSaveApp {
   settings: Option<Settings>,
   /// Why `config.toml` couldn't be written last time.
   config_error: Option<String>,
+  updater: Updater,
 }
 
 impl KeepSaveApp {
@@ -71,6 +73,7 @@ impl KeepSaveApp {
       screen_since: None,
       settings: None,
       config_error: None,
+      updater: Updater::new(),
     }
   }
 
@@ -175,6 +178,26 @@ impl KeepSaveApp {
         self.save_config();
         return;
       }
+      Nav::CheckForUpdates => {
+        self.updater.check(&self.worker);
+        return;
+      }
+      Nav::DownloadUpdate => {
+        self.updater.download(&self.worker);
+        return;
+      }
+      Nav::RestartToUpdate => {
+        self.updater.request_restart();
+        self.settings = None;
+        if let Screen::Main(main) = &mut self.screen {
+          let cx =
+            ScreenCtx { i18n: &self.i18n, worker: &self.worker, config: &self.config, lift: 0.0, os_lock: false, drive: &self.drive, overlay: false };
+          if let Some(nav) = main.lock(&cx) {
+            self.navigate(nav, ctx);
+          }
+        }
+        return;
+      }
     };
     self.screen = screen;
     self.screen_since = None;
@@ -206,7 +229,7 @@ impl KeepSaveApp {
       return None;
     };
     let before = self.config.clone();
-    let cx = SettingsCtx { i18n: &self.i18n, drive: &self.drive, config_error: self.config_error.as_deref() };
+    let cx = SettingsCtx { i18n: &self.i18n, drive: &self.drive, config_error: self.config_error.as_deref(), update: self.updater.state() };
     let request = settings.show(ctx, &cx, &mut self.config);
     if self.config != before {
       self.save_config();
@@ -229,6 +252,17 @@ impl KeepSaveApp {
       };
       return None;
     }
+    match event {
+      Event::UpdateChecked(result) => {
+        self.updater.checked(result, &self.i18n);
+        return None;
+      }
+      Event::UpdateDownloaded(result) => {
+        self.updater.downloaded(result, &self.i18n);
+        return None;
+      }
+      _ => {}
+    }
     if let Some(SyncError::Reauthorize) = event.drive_error() {
       // Google revoked the grant: forget the token and ask to connect again.
       let _ = keepsave_sync::delete_refresh_token();
@@ -250,6 +284,23 @@ impl KeepSaveApp {
       Screen::Unlock(unlock) => unlock.on_event(event, &cx),
       Screen::DriveImport(import) => import.on_event(event, &cx),
       Screen::Main(main) => main.on_event(event, &cx),
+    }
+  }
+
+  /// Restarts into the downloaded update once no vault is open. A failed
+  /// save before locking cancels it.
+  fn restart_when_locked(&mut self, ctx: &egui::Context) {
+    if !self.updater.restart_pending() {
+      return;
+    }
+    match &self.screen {
+      Screen::Main(main) if !main.locking() => self.updater.cancel_restart(),
+      Screen::Main(_) => {}
+      _ => {
+        if self.updater.restart(&self.i18n) {
+          ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+        }
+      }
     }
   }
 
@@ -307,6 +358,13 @@ impl eframe::App for KeepSaveApp {
     if let Some(nav) = self.settings(&ctx) {
       self.navigate(nav, &ctx);
     }
+    if self.settings.is_none()
+      && let Some(nav) = self.updater.banner(&ctx, &self.i18n)
+    {
+      self.navigate(nav, &ctx);
+    }
+    self.updater.tick(&ctx, &self.worker, self.config.check_for_updates);
+    self.restart_when_locked(&ctx);
   }
 
   fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {

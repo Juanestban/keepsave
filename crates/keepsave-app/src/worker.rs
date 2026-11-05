@@ -12,8 +12,13 @@ use std::sync::Arc;
 
 use eframe::egui;
 use keepsave_core::{CoreError, KdfParams, SecretString, Vault};
-use keepsave_sync::{BrowserPage, Credentials, DriveClient, RemoteFile, RemoteStore, SyncError, SyncLink, SyncOutcome};
+use keepsave_sync::{
+  BrowserPage, Credentials, DriveClient, RemoteFile, RemoteStore, SyncError, SyncLink, SyncOutcome,
+  update::{self, Release, UpdateError},
+};
 use tokio::{runtime::Runtime, task::AbortHandle};
+
+use crate::update::Progress;
 
 /// An unlocked vault and the file it lives in.
 pub struct OpenVault {
@@ -53,6 +58,9 @@ pub enum Event {
     local_changed: bool,
     result: Result<SyncOutcome, SyncError>,
   },
+  /// `Some` when a newer release is out.
+  UpdateChecked(Result<Option<Release>, UpdateError>),
+  UpdateDownloaded(Result<PathBuf, UpdateError>),
 }
 
 impl Event {
@@ -78,7 +86,8 @@ pub struct Worker {
 
 impl Worker {
   pub fn new(ctx: egui::Context) -> io::Result<Self> {
-    let runtime = tokio::runtime::Builder::new_multi_thread().worker_threads(2).thread_name("keepsave-worker").build()?;
+    // IO and timers: reqwest (Drive, updates) needs both.
+    let runtime = tokio::runtime::Builder::new_multi_thread().worker_threads(2).thread_name("keepsave-worker").enable_all().build()?;
     let (sender, receiver) = mpsc::channel();
     Ok(Self { runtime, sender, receiver, ctx })
   }
@@ -194,6 +203,23 @@ impl Worker {
     self.spawn(async move {
       let result = keepsave_sync::sync_vault(&*client, snapshot, &link, local_changed, chrono::Utc::now()).await;
       Event::VaultSynced { path, generation, local_changed, result }
+    });
+  }
+
+  pub fn check_update(&self) {
+    self.spawn(async { Event::UpdateChecked(update::check(&crate::update::current_version()).await) });
+  }
+
+  /// Downloads `name` from `release` to `dest`, reporting into `progress`.
+  pub fn download_update(&self, release: Release, name: String, dest: PathBuf, progress: Arc<Progress>) {
+    let ctx = self.ctx.clone();
+    self.spawn(async move {
+      let result = update::download(&release, &name, &dest, |done, total| {
+        progress.set(done, total);
+        ctx.request_repaint();
+      })
+      .await;
+      Event::UpdateDownloaded(result)
     });
   }
 

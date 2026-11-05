@@ -75,6 +75,16 @@ Code complete; waiting for a check with two PCs (or two vault copies) on a real 
 - [x] Standalone password generator from the main top bar
 - [x] App icon (in the `.exe` and the window) and version 1.0.0
 
+## M7 — Installer & updates ✅
+
+- [x] Release workflow: tag `v*` → checks, build with the Google client from secrets, GitHub Release
+- [x] Per-user MSI (WiX v5) and `scripts/package.ps1` (MSI, portable `.exe`, `SHA256SUMS.txt`)
+- [x] Update check at startup and every 6 h (Settings → About: status, Check now, automatic toggle)
+- [x] Update banner: download with progress, SHA-256 check, restart into the new version (MSI or portable)
+- [x] Fix: the worker runtime had no IO/timer driver, so every network task panicked
+- [x] Version 1.1.0
+- [ ] Manual check: install the MSI, then update from one release to the next
+
 ## Post-v1 backlog
 
 - Auto-type
@@ -83,6 +93,5 @@ Code complete; waiting for a check with two PCs (or two vault copies) on a real 
 - Windows Hello quick unlock
 - Entry templates
 - Import from CSV and other managers
-- MSI installer (`cargo-wix`) and auto-update
 - Real backdrop blur
 - Code signing

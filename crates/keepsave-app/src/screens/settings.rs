@@ -14,6 +14,7 @@ use crate::{
   drive::DriveState,
   i18n::{I18n, Language},
   theme,
+  update::State as UpdateState,
   widgets::{ActionButton, HOVER_TIME, icon_button, icon_link, notice, single_line, toggle},
 };
 
@@ -58,6 +59,7 @@ pub struct SettingsCtx<'a> {
   pub drive: &'a DriveState,
   /// Why `config.toml` couldn't be written, if it couldn't.
   pub config_error: Option<&'a str>,
+  pub update: &'a UpdateState,
 }
 
 /// What the user asked of the app from Settings.
@@ -128,10 +130,7 @@ impl Settings {
                 appearance(ui, cx, config);
                 None
               }
-              Tab::About => {
-                about(ui, cx);
-                None
-              }
+              Tab::About => about(ui, cx, config),
             };
             if let Some(nav) = nav {
               request = Some(Request::Nav(nav));
@@ -264,8 +263,9 @@ fn appearance(ui: &mut Ui, cx: &SettingsCtx, config: &mut Config) {
   });
 }
 
-fn about(ui: &mut Ui, cx: &SettingsCtx) {
+fn about(ui: &mut Ui, cx: &SettingsCtx, config: &mut Config) -> Option<Nav> {
   let tr = |key| cx.i18n.tr(key);
+  let mut nav = None;
   ui.horizontal(|ui| {
     ui.label(RichText::new(icon::VAULT).font(theme::icon_font(34.0)).color(theme::ACCENT));
     ui.vertical(|ui| {
@@ -275,6 +275,47 @@ fn about(ui: &mut Ui, cx: &SettingsCtx) {
     });
   });
   ui.label(RichText::new(tr("app-tagline")).color(theme::TEXT));
+
+  ui.add_space(8.0);
+  section(ui, &tr("about-updates"), None);
+  let (status, color) = match cx.update {
+    UpdateState::Idle => (tr("update-status-idle"), theme::TEXT_MUTED),
+    UpdateState::Checking => (tr("update-status-checking"), theme::TEXT_MUTED),
+    UpdateState::UpToDate => (tr("update-status-up-to-date"), theme::SUCCESS),
+    UpdateState::CheckFailed(error) => (error.clone(), theme::DANGER),
+    UpdateState::Available(release) | UpdateState::Failed { release, .. } => {
+      (cx.i18n.tr_arg("update-status-available", "version", release.version.to_string()), theme::ACCENT)
+    }
+    UpdateState::Downloading { .. } => (tr("update-status-downloading"), theme::ACCENT),
+    UpdateState::Ready { .. } => (tr("update-ready"), theme::ACCENT),
+  };
+  setting_text(ui, RichText::new(status).color(color), None, |ui| match cx.update {
+    UpdateState::Available(_) | UpdateState::Failed { .. } => {
+      if ui.add(ActionButton::new(tr("update-install")).icon(icon::DOWNLOAD_SIMPLE).primary()).clicked() {
+        nav = Some(Nav::DownloadUpdate);
+      }
+    }
+    UpdateState::Ready { .. } => {
+      if ui.add(ActionButton::new(tr("update-restart")).icon(icon::ARROW_CLOCKWISE).primary()).clicked() {
+        nav = Some(Nav::RestartToUpdate);
+      }
+    }
+    state => {
+      let busy = matches!(state, UpdateState::Checking | UpdateState::Downloading { .. });
+      if ui.add(ActionButton::new(tr("update-check-now")).icon(icon::ARROWS_CLOCKWISE).loading(busy)).clicked() {
+        nav = Some(Nav::CheckForUpdates);
+      }
+    }
+  });
+  if let UpdateState::Failed { error, .. } = cx.update {
+    notice(ui, icon::WARNING_CIRCLE, error, theme::DANGER);
+  }
+  setting(ui, &tr("update-automatic"), Some(&tr("update-automatic-hint")), |ui| {
+    toggle(ui, &mut config.check_for_updates, true, &tr("update-automatic"));
+  });
+
+  ui.add_space(8.0);
+  section(ui, &tr("about-license-title"), None);
   ui.add(Label::new(RichText::new(tr("about-license")).color(theme::TEXT_MUTED)).wrap());
   if icon_link(ui, icon::GITHUB_LOGO, &tr("about-repository")).clicked() {
     let _ = webbrowser::open(REPOSITORY);
@@ -288,6 +329,7 @@ fn about(ui: &mut Ui, cx: &SettingsCtx) {
   if icon_link(ui, icon::ARROW_SQUARE_OUT, &tr("about-eff-link")).clicked() {
     let _ = webbrowser::open(EFF_WORDLIST);
   }
+  nav
 }
 
 // ---- building blocks ----
@@ -301,13 +343,18 @@ fn section(ui: &mut Ui, title: &str, hint: Option<&str>) {
 
 /// A setting's name and hint on the left, its control on the right.
 fn setting(ui: &mut Ui, label: &str, hint: Option<&str>, control: impl FnOnce(&mut Ui)) {
+  setting_text(ui, RichText::new(label).color(theme::TEXT), hint, control);
+}
+
+/// [`setting`] with a styled label.
+fn setting_text(ui: &mut Ui, label: RichText, hint: Option<&str>, control: impl FnOnce(&mut Ui)) {
   let width = ui.available_width();
   ui.allocate_ui_with_layout(Vec2::new(width, 0.0), Layout::left_to_right(Align::Center), |ui| {
     let text_width = (width - CONTROL_WIDTH - 16.0).max(120.0);
     ui.allocate_ui_with_layout(Vec2::new(text_width, 0.0), Layout::top_down(Align::Min), |ui| {
       ui.set_width(text_width);
       ui.spacing_mut().item_spacing.y = 2.0;
-      ui.add(Label::new(RichText::new(label).color(theme::TEXT)).wrap());
+      ui.add(Label::new(label).wrap());
       if let Some(hint) = hint {
         ui.add(Label::new(RichText::new(hint).small().color(theme::TEXT_FAINT)).wrap());
       }

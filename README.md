@@ -58,16 +58,28 @@ adds:
 | Bidirectional sync, merge and versioned backups | 🟨 M5 (awaiting a real-account check) |
 | Settings, standalone generator, About | ✅ Done |
 | Portable release `.exe` | 🟨 M6 (awaiting a KeePassXC check) |
+| MSI installer (per user, no admin rights) | ✅ Done |
+| Update checks with an in-app banner, download and restart | ✅ Done |
 
-Planned after v1: auto-type, attachments, key files, Windows Hello unlock,
-entry templates, CSV import, an MSI installer and auto-update.
+Planned next: auto-type, attachments, key files, Windows Hello unlock,
+entry templates, CSV import and code signing.
 
 ## Installation
 
-Version 1.0.0 is a single portable Windows `.exe` with everything embedded.
-Download it from the [Releases](https://github.com/Juanestban/keepsave/releases)
-page when it is published there, or build it from source as below. It isn't
-code-signed yet, so Windows SmartScreen warns the first time you run it.
+Each [release](https://github.com/Juanestban/keepsave/releases) has two
+Windows downloads, with everything embedded:
+
+- **`keepsave-<version>-x64.msi`**: installs for your user only, in
+  `%LOCALAPPDATA%\Programs\KeepSave`, with a Start menu shortcut. No
+  administrator rights needed. Uninstall it from *Settings → Apps*.
+- **`keepsave-<version>-x64-portable.exe`**: a single file. Copy it anywhere
+  and run it.
+
+Both check for new versions and offer to update themselves (see
+[Updates](#updates)). They aren't code-signed yet, so Windows SmartScreen
+warns the first time you run them. `SHA256SUMS.txt` lists their checksums.
+
+You can also build KeepSave from source as below.
 
 ### Requirements (all platforms)
 
@@ -163,11 +175,27 @@ a local-only password manager, with the Drive actions hidden.
   `drive.file` scope, so KeepSave can only see the files it created itself.
   The refresh token is stored in the OS keyring (Windows Credential Manager),
   not in a config file.
+- **Updates:** downloads are checked against the release's SHA-256
+  checksums before they are installed. Without code signing this catches
+  damaged downloads, not a compromised GitHub account.
 - **Generator:** uses the OS random number generator. Passphrases use the
   [EFF large wordlist](https://www.eff.org/dice).
 
 Your master password can't be recovered. If you forget it, the vault is
 gone. Keep a backup of it somewhere safe.
+
+## Updates
+
+KeepSave asks GitHub for the latest release when it starts and every 6 hours
+while it runs. When there is a newer version, a card at the bottom right
+offers to update. KeepSave downloads it, checks it against the release's
+`SHA256SUMS.txt`, and restarts into it. An open vault is saved and locked
+first. The MSI version updates through Windows Installer, and the portable
+`.exe` replaces itself.
+
+The check sends nothing but a normal HTTPS request with the `KeepSave/<version>`
+user agent. You can turn it off in *Settings → About*, where *Check now* is
+always available.
 
 ## Keyboard shortcuts
 
@@ -201,6 +229,7 @@ crates/keepsave-sync   # Google OAuth and the Drive REST client
 crates/keepsave-app    # eframe desktop app: theme, animations, i18n, screens
 docs/                  # design decisions and the Google setup guide
 scripts/make_icon.py   # draws the app icon (Python standard library only)
+scripts/package.ps1    # builds the MSI, the portable .exe and SHA256SUMS.txt
 ```
 
 The architecture and the reasoning behind every decision are in
@@ -218,6 +247,26 @@ cargo clippy --workspace --all-targets -- -D warnings   # lint
 
 CI runs formatting, clippy and the tests on Windows for every push to `main`
 and every pull request.
+
+### Releasing
+
+1. Set the version in the root `Cargo.toml` (`[workspace.package]`).
+2. Commit, then tag and push: `git tag v1.2.0 && git push origin v1.2.0`.
+   A suffix such as `v1.2.0-rc.1` publishes a pre-release, which the
+   in-app updater ignores.
+3. The [release workflow](.github/workflows/release.yml) checks the tag
+   matches the version, runs the checks, builds with the Google client from
+   the repository secrets `KEEPSAVE_GOOGLE_CLIENT_ID` and
+   `KEEPSAVE_GOOGLE_CLIENT_SECRET`, and publishes the release with the MSI,
+   the portable `.exe` and `SHA256SUMS.txt`.
+
+To package locally, install [WiX](https://wixtoolset.org/) v5
+(`dotnet tool install --global wix --version 5.0.2`), then run:
+
+```powershell
+cargo build --release -p keepsave-app
+./scripts/package.ps1   # writes target\dist
+```
 
 Code, comments, commit messages and docs are in English. Commits follow
 [Conventional Commits](https://www.conventionalcommits.org/) (`feat(core): …`,

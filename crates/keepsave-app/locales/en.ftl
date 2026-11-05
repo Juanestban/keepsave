@@ -268,6 +268,36 @@ about-credit-phosphor = Phosphor icons, under the MIT License.
 about-credit-eff = Passphrase wordlist by the Electronic Frontier Foundation, under CC BY 3.0.
 about-eff-link = EFF wordlists
 
+about-license-title = License
+about-updates = Updates
+
+## Updates
+
+update-available = Update available
+update-ready = Update ready to install
+update-versions = KeepSave { $version } · you have { $current }
+update-close = Hide until next start
+update-install = Update
+update-notes = What's new
+update-downloading = Downloading… { $percent }%
+update-restart = Restart to update
+update-restart-hint = An open vault is saved and locked first.
+update-retry = Retry
+update-open-page = Release page
+update-check-now = Check now
+update-automatic = Check for updates automatically
+update-automatic-hint = At startup and every 6 hours. Only asks GitHub for the latest version.
+update-status-idle = Not checked yet.
+update-status-checking = Checking for updates…
+update-status-up-to-date = KeepSave is up to date.
+update-status-available = Version { $version } is available.
+update-status-downloading = Downloading the update…
+update-error-network = Couldn't reach GitHub. Check your connection.
+update-error-rate-limit = GitHub is limiting requests. Try again later.
+update-error-checksum = The download is damaged. Try again.
+update-error-missing = This release can't be installed from the app. Download it from the release page.
+update-error-folder = KeepSave can't write to its folder. Download the update from the release page.
+
 ## Password generator
 
 generator-open = Password generator

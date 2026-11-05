@@ -6,7 +6,7 @@ file format, adds a minimalist dark "liquid glass" UI, and syncs vaults
 through Google Drive so they can be restored on any PC.
 
 This document records every design decision agreed before implementation
-(Q1–Q23) and the reasoning behind each. Change a decision here first, then in
+(Q1–Q23, plus Q24 added later) and the reasoning behind each. Change a decision here first, then in
 code.
 
 ## 1. Scope
@@ -312,7 +312,8 @@ branding or assets from any existing product.
    - **Language:** System, Español, English.
    - **Appearance:** animated background (off draws a still frame and stops
      the constant repaint).
-   - **About:** version, licenses, repository link and third-party credits:
+   - **About:** version, update status with *Check now* and the automatic
+     check toggle (Q24), licenses, repository link and third-party credits:
      Inter (SIL OFL 1.1), Phosphor icons (MIT) and the EFF large wordlist
      (CC BY 3.0).
 5. **Password generator** (M6): a button in the main top bar opens the
@@ -369,6 +370,8 @@ crates/
   talk to the UI over channels, so the UI thread never blocks.
 - `keepsave-sync` puts Drive behind a `RemoteStore` trait so it can be tested
   without the network.
+- `keepsave-sync` also holds the update check and download (Q24): it is the
+  crate that owns the HTTP client.
 - `google-drive3` is not used; the few REST endpoints we need are written by
   hand.
 
@@ -382,8 +385,54 @@ crates/
   `assets/icon/keepsave.ico` (16–256 px) and a raw 128 px RGBA copy. The
   `.ico` goes into the `.exe` resources with `winresource` (with the
   version info); the RGBA copy is the window and taskbar icon.
-- Later: MSI installer (`cargo-wix`) and auto-update.
+- **MSI installer:** a per-user package written for WiX v5
+  (`crates/keepsave-app/installer/keepsave.wxs`, built by
+  `scripts/package.ps1`). It installs `keepsave.exe` to
+  `%LOCALAPPDATA%\Programs\KeepSave` with a Start menu shortcut, needs no
+  administrator rights, and upgrades in place (fixed `UpgradeCode`, major
+  upgrade). No wizard: it installs with a progress bar, which also suits
+  silent updates. `cargo-wix` was dropped because it targets WiX v3 and
+  machine-wide installs.
+- **Releases:** `.github/workflows/release.yml` runs on a `v*` tag. It checks
+  that the tag matches the workspace version, builds the release `.exe` with
+  the Google client from the repository secrets, builds the MSI, and
+  publishes a GitHub Release with `keepsave-<version>-x64.msi`,
+  `keepsave-<version>-x64-portable.exe` and `SHA256SUMS.txt`. A tag with a
+  pre-release suffix (`v1.1.0-rc.1`) makes a pre-release, which the updater
+  ignores.
 - No code signing yet, so SmartScreen warns on first run.
+
+### Q24 — Updates
+
+- **Check:** the app asks GitHub for the latest release
+  (`/repos/Juanestban/keepsave/releases/latest`, no token; drafts and
+  pre-releases are skipped) at startup and every 6 hours while running. It
+  compares the tag with its own version as semver. Settings → About shows
+  the result, has *Check now*, and a toggle *Check for updates
+  automatically* (on by default; off means only *Check now* contacts
+  GitHub). The request carries only the `KeepSave/<version>` user agent.
+- **Banner:** a newer version shows a glass card at the bottom right, over
+  every screen: the new version, *Update*, *What's new* (the release page)
+  and a close button that hides it until the next start. *Update*
+  downloads in place with a progress bar; when it is ready the card offers
+  *Restart to update*. Errors show in the card with *Retry* and a link to
+  the release page.
+- **Integrity:** the download is hashed while it streams and must match its
+  line in the release's `SHA256SUMS.txt`; a release without it can't be
+  installed from the app. Without code signing this guards against broken
+  downloads, not against a compromised GitHub account.
+- **Install:** an MSI install (the app runs from
+  `%LOCALAPPDATA%\Programs\KeepSave`) downloads the MSI and hands it to a
+  hidden PowerShell that waits for KeepSave to exit, runs
+  `msiexec /i … /passive` and starts the new version. A portable copy
+  downloads the portable `.exe`, renames itself to `keepsave.exe.old`, puts
+  the new file in its place and starts it; the next start deletes the old
+  file. If the folder isn't writable, the card says so and links to the
+  release page.
+- **Restart with a vault open:** the app locks first, which saves pending
+  changes; it restarts only once the vault is locked. A failed save cancels
+  the restart and shows the usual error.
+- Off Windows, *Update* opens the release page instead.
 
 ### Q21 — Tests and CI
 

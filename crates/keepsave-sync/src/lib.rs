@@ -1,13 +1,14 @@
 //! Google Drive for KeepSave: OAuth sign-in (loopback redirect with PKCE),
 //! the refresh token in the OS credential store, a small Drive REST client
 //! behind the [`RemoteStore`] trait, and the sync that merges and uploads a
-//! vault.
+//! vault. [`update`] finds and downloads new KeepSave releases.
 
 mod drive;
 mod error;
 mod oauth;
 mod sync;
 mod token_store;
+pub mod update;
 
 use std::future::Future;
 

@@ -911,6 +911,16 @@ impl MainScreen {
     }
   }
 
+  /// Locks from outside the screen, e.g. to restart for an update.
+  pub fn lock(&mut self, cx: &ScreenCtx) -> Option<Nav> {
+    self.request_lock(cx)
+  }
+
+  /// Waiting for a save before locking.
+  pub fn locking(&self) -> bool {
+    self.lock_pending
+  }
+
   /// Locks now, or after the pending changes are on disk. A draft is
   /// discarded: locking must not wait for the user.
   fn request_lock(&mut self, cx: &ScreenCtx) -> Option<Nav> {

@@ -1,0 +1,60 @@
+name: Release
+
+# Push a tag like v1.1.0 (or v1.1.0-rc.1 for a pre-release) whose version
+# matches the workspace version in Cargo.toml.
+on:
+  push:
+    tags: ["v*"]
+
+env:
+  CARGO_TERM_COLOR: always
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the tag matches Cargo.toml
+        shell: pwsh
+        run: |
+          $metadata = cargo metadata --format-version 1 --no-deps | ConvertFrom-Json
+          $version = ($metadata.packages | Where-Object { $_.name -eq 'keepsave-app' }).version
+          if ("v$version" -ne $env:GITHUB_REF_NAME) {
+            throw "tag $env:GITHUB_REF_NAME doesn't match the workspace version $version"
+          }
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test --workspace
+
+      # Without the secrets the build still works, with Drive hidden.
+      - name: Build
+        run: cargo build --release -p keepsave-app
+        env:
+          KEEPSAVE_GOOGLE_CLIENT_ID: ${{ secrets.KEEPSAVE_GOOGLE_CLIENT_ID }}
+          KEEPSAVE_GOOGLE_CLIENT_SECRET: ${{ secrets.KEEPSAVE_GOOGLE_CLIENT_SECRET }}
+
+      - name: Install WiX
+        run: dotnet tool install --global wix --version 5.0.2
+
+      - name: Package
+        shell: pwsh
+        run: ./scripts/package.ps1
+
+      - name: Publish the release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $flags = @('--generate-notes', '--title', "KeepSave $($env:GITHUB_REF_NAME.TrimStart('v'))")
+          if ($env:GITHUB_REF_NAME.Contains('-')) { $flags += '--prerelease' }
+          gh release create $env:GITHUB_REF_NAME (Get-ChildItem target/dist -File).FullName @flags

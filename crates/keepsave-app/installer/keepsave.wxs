@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  KeepSave per-user MSI for WiX v5. Build it with scripts/build-msi.ps1,
+  which passes Version, ExePath and IconPath.
+
+  Never change the UpgradeCode: it is how new versions find and replace
+  the installed one.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package
+    Name="KeepSave"
+    Manufacturer="Juan Esteban"
+    Version="$(Version)"
+    UpgradeCode="b0b43524-3dae-41f2-9cfb-a182b71c3faf"
+    Scope="perUser"
+    Language="1033">
+
+    <MajorUpgrade
+      AllowSameVersionUpgrades="yes"
+      DowngradeErrorMessage="A newer version of KeepSave is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Icon Id="KeepSave.ico" SourceFile="$(IconPath)" />
+    <Property Id="ARPPRODUCTICON" Value="KeepSave.ico" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/Juanestban/keepsave" />
+    <Property Id="ARPNOMODIFY" Value="1" />
+    <Property Id="ARPNOREPAIR" Value="1" />
+
+    <!-- %LOCALAPPDATA%\Programs\KeepSave: no administrator rights needed. -->
+    <StandardDirectory Id="LocalAppDataFolder">
+      <Directory Id="ProgramsFolder" Name="Programs">
+        <Directory Id="INSTALLFOLDER" Name="KeepSave" />
+      </Directory>
+    </StandardDirectory>
+
+    <!-- Files in the user profile need an HKCU key path, RemoveFolder and
+         a fixed component GUID. -->
+    <Component Id="App" Directory="INSTALLFOLDER" Guid="df878f2e-4486-4b54-8042-3362abadda96">
+      <File Id="KeepSaveExe" Source="$(ExePath)" Name="keepsave.exe" />
+      <RegistryValue Root="HKCU" Key="Software\KeepSave" Name="InstallDir" Type="string" Value="[INSTALLFOLDER]" KeyPath="yes" />
+      <RemoveFolder Id="RemoveInstallFolder" Directory="INSTALLFOLDER" On="uninstall" />
+      <RemoveFolder Id="RemoveProgramsFolder" Directory="ProgramsFolder" On="uninstall" />
+    </Component>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Component Id="StartMenuShortcut" Guid="68da2fb4-7560-4806-8e47-3a4899862788">
+        <Shortcut Id="KeepSaveShortcut" Name="KeepSave" Description="Password manager" Target="[INSTALLFOLDER]keepsave.exe" WorkingDirectory="INSTALLFOLDER" Icon="KeepSave.ico" />
+        <RegistryValue Root="HKCU" Key="Software\KeepSave" Name="StartMenuShortcut" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </StandardDirectory>
+  </Package>
+</Wix>

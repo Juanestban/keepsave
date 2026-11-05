@@ -2099,9 +2099,10 @@ dependencies = [
 
 [[package]]
 name = "keepsave-app"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "arboard",
+ "base64 0.23.1",
  "chrono",
  "directories",
  "eframe",
@@ -2111,6 +2112,7 @@ dependencies = [
  "keepsave-sync",
  "rfd",
  "secrecy",
+ "semver",
  "serde",
  "sys-locale",
  "tempfile",
@@ -2125,7 +2127,7 @@ dependencies = [
 
 [[package]]
 name = "keepsave-core"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "chrono",
  "keepass",
@@ -2139,7 +2141,7 @@ dependencies = [
 
 [[package]]
 name = "keepsave-sync"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "base64 0.23.1",
  "chrono",
@@ -2149,6 +2151,7 @@ dependencies = [
  "reqwest",
  "rustls",
  "secrecy",
+ "semver",
  "serde",
  "serde_json",
  "sha2",
