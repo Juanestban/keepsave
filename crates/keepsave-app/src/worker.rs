@@ -8,9 +8,12 @@ use std::{
   sync::mpsc::{self, Receiver, Sender},
 };
 
+use std::sync::Arc;
+
 use eframe::egui;
 use keepsave_core::{CoreError, KdfParams, SecretString, Vault};
-use tokio::runtime::Runtime;
+use keepsave_sync::{BrowserPage, Credentials, DriveClient, RemoteFile, RemoteStore, SyncError};
+use tokio::{runtime::Runtime, task::AbortHandle};
 
 /// An unlocked vault and the file it lives in.
 pub struct OpenVault {
@@ -28,6 +31,34 @@ pub enum Event {
     generation: u64,
     result: Result<(), CoreError>,
   },
+  DriveConnected(Result<DriveClient, SyncError>),
+  DriveFilesListed(Result<Vec<RemoteFile>, SyncError>),
+  DriveImportPathPicked {
+    file: RemoteFile,
+    path: Option<PathBuf>,
+  },
+  DriveDownloaded {
+    path: PathBuf,
+    result: Result<RemoteFile, SyncError>,
+  },
+  DriveUploaded {
+    path: PathBuf,
+    result: Result<RemoteFile, SyncError>,
+  },
+  DriveDisconnected,
+}
+
+impl Event {
+  /// The Drive error this event carries, if any.
+  pub fn drive_error(&self) -> Option<&SyncError> {
+    match self {
+      Event::DriveConnected(Err(error))
+      | Event::DriveFilesListed(Err(error))
+      | Event::DriveDownloaded { result: Err(error), .. }
+      | Event::DriveUploaded { result: Err(error), .. } => Some(error),
+      _ => None,
+    }
+  }
 }
 
 pub struct Worker {
@@ -88,14 +119,79 @@ impl Worker {
     self.spawn_blocking(move || Event::VaultSaved { generation, result: vault.save(&path) });
   }
 
-  fn spawn(&self, task: impl Future<Output = Event> + Send + 'static) {
+  /// Opens the browser for Google sign-in and waits for the redirect.
+  /// Abort the returned handle to cancel.
+  pub fn connect_drive(&self, credentials: Credentials, pages: (BrowserPage, BrowserPage)) -> AbortHandle {
+    self.spawn(async move { Event::DriveConnected(DriveClient::connect(credentials, pages, webbrowser::open).await) })
+  }
+
+  pub fn disconnect_drive(&self, client: Arc<DriveClient>) {
+    self.spawn(async move {
+      // The token is gone locally either way; nothing to report.
+      let _ = client.disconnect().await;
+      Event::DriveDisconnected
+    });
+  }
+
+  pub fn list_drive(&self, client: Arc<DriveClient>) {
+    self.spawn(async move { Event::DriveFilesListed(client.list_vaults().await) });
+  }
+
+  /// Asks where to save `file`, starting in `Documents\KeepSave`.
+  pub fn pick_import_path(&self, title: String, filter: String, file: RemoteFile) {
+    self.spawn(async move {
+      let mut dialog = rfd::AsyncFileDialog::new().set_title(title).add_filter(filter, &["kdbx"]).set_file_name(file.name.clone());
+      if let Some(dir) = directories::UserDirs::new().and_then(|dirs| dirs.document_dir().map(|docs| docs.join("KeepSave"))) {
+        // If it can't be created, the dialog starts in its default folder.
+        if std::fs::create_dir_all(&dir).is_ok() {
+          dialog = dialog.set_directory(dir);
+        }
+      }
+      let path = dialog.save_file().await.map(|handle| with_kdbx_extension(handle.path().to_owned()));
+      Event::DriveImportPathPicked { file, path }
+    });
+  }
+
+  pub fn download_from_drive(&self, client: Arc<DriveClient>, file: RemoteFile, path: PathBuf) {
+    self.spawn(async move {
+      let result = async {
+        let bytes = client.download(&file.id).await?;
+        write_atomically(&path, &bytes)?;
+        Ok(file)
+      }
+      .await;
+      Event::DriveDownloaded { path, result }
+    });
+  }
+
+  /// Uploads the vault as a new file in the Drive folder, named like the
+  /// local file. Encrypting re-derives the key, so it runs off the runtime.
+  pub fn upload_to_drive(&self, client: Arc<DriveClient>, vault: Vault, path: PathBuf) {
+    self.spawn(async move {
+      let result = async {
+        let bytes = tokio::task::spawn_blocking(move || vault.to_bytes())
+          .await
+          .map_err(io::Error::other)?
+          .map_err(|error| io::Error::other(error.to_string()))?;
+        let name = path.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_else(|| "KeepSave.kdbx".into());
+        client.create(&name, bytes).await
+      }
+      .await;
+      Event::DriveUploaded { path, result }
+    });
+  }
+
+  fn spawn(&self, task: impl Future<Output = Event> + Send + 'static) -> AbortHandle {
     let sender = self.sender.clone();
     let ctx = self.ctx.clone();
-    self.runtime.spawn(async move {
-      // The receiver only goes away when the app is closing.
-      let _ = sender.send(task.await);
-      ctx.request_repaint();
-    });
+    self
+      .runtime
+      .spawn(async move {
+        // The receiver only goes away when the app is closing.
+        let _ = sender.send(task.await);
+        ctx.request_repaint();
+      })
+      .abort_handle()
   }
 
   fn spawn_blocking(&self, task: impl FnOnce() -> Event + Send + 'static) {
@@ -106,6 +202,15 @@ impl Worker {
       ctx.request_repaint();
     });
   }
+}
+
+/// Writes next to `path` first, so a failed download never leaves half a
+/// vault behind.
+fn write_atomically(path: &std::path::Path, bytes: &[u8]) -> io::Result<()> {
+  let mut tmp = path.as_os_str().to_owned();
+  tmp.push(".tmp");
+  std::fs::write(&tmp, bytes)?;
+  std::fs::rename(&tmp, path)
 }
 
 fn with_kdbx_extension(path: PathBuf) -> PathBuf {

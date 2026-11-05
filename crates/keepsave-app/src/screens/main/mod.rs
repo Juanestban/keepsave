@@ -20,7 +20,7 @@ use zeroize::Zeroizing;
 use super::{Nav, ScreenCtx, error_message};
 use crate::{
   clipboard::SecureClipboard,
-  theme,
+  drive, theme,
   widgets::{ActionButton, icon_button, search_field, single_line},
   worker::{Event, OpenVault},
 };
@@ -76,6 +76,11 @@ pub enum Action {
   Lock,
   CloseWindow,
   ForceClose,
+  ConnectDrive,
+  CancelDrive,
+  DisconnectDrive,
+  UploadToDrive,
+  UnlinkDrive,
   /// The user confirmed throwing away the draft; then do the action.
   Discard(Box<Action>),
 }
@@ -207,6 +212,8 @@ pub struct MainScreen {
   auto_lock_paused_at: Option<u64>,
   close_pending: bool,
   allow_close: bool,
+  /// A copy is being uploaded to Drive.
+  uploading: bool,
 }
 
 impl MainScreen {
@@ -229,6 +236,7 @@ impl MainScreen {
       auto_lock_paused_at: None,
       close_pending: false,
       allow_close: false,
+      uploading: false,
     }
   }
 
@@ -236,10 +244,25 @@ impl MainScreen {
     &self.open.vault
   }
 
-  pub fn on_event(&mut self, event: Event, cx: &ScreenCtx) {
-    let Event::VaultSaved { generation, result } = event else {
-      return;
-    };
+  pub fn on_event(&mut self, event: Event, cx: &ScreenCtx) -> Option<Nav> {
+    match event {
+      Event::VaultSaved { generation, result } => self.saved(generation, result, cx),
+      Event::DriveUploaded { path, result } if path == self.open.path => {
+        self.uploading = false;
+        match result {
+          Ok(file) => {
+            self.show_toast(cx.i18n.tr("toast-drive-uploaded"), false);
+            return Some(Nav::LinkDrive { path, file });
+          }
+          Err(error) => self.show_toast(drive::error_message(cx.i18n, &error), true),
+        }
+      }
+      _ => {}
+    }
+    None
+  }
+
+  fn saved(&mut self, generation: u64, result: Result<(), CoreError>, cx: &ScreenCtx) {
     let failed = result.is_err();
     self.save.finished(generation, result.map_err(|error| error_message(cx.i18n, &error)));
     if !failed {
@@ -557,6 +580,15 @@ impl MainScreen {
           self.close_pending = true;
           self.save.now = true;
         }
+      }
+      Action::ConnectDrive => return Some(Nav::ConnectDrive),
+      Action::CancelDrive => return Some(Nav::CancelDrive),
+      Action::DisconnectDrive => return Some(Nav::DisconnectDrive),
+      Action::UnlinkDrive => return Some(Nav::UnlinkDrive(self.open.path.clone())),
+      Action::UploadToDrive => {
+        let client = cx.drive.client()?.clone();
+        self.uploading = true;
+        cx.worker.upload_to_drive(client, self.vault().clone(), self.open.path.clone());
       }
       Action::ForceClose => {
         self.allow_close = true;

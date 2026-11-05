@@ -7,6 +7,7 @@ mod app;
 mod background;
 mod clipboard;
 mod config;
+mod drive;
 mod fonts;
 mod i18n;
 mod screens;

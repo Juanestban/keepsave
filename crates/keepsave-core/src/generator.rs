@@ -195,9 +195,10 @@ mod tests {
 
   #[test]
   fn passphrase_uses_wordlist_and_separator() {
-    let options = PassphraseOptions::default();
+    // Not the default `-`: a few EFF words are hyphenated, like `t-shirt`.
+    let options = PassphraseOptions { separator: " ".into(), ..PassphraseOptions::default() };
     let phrase = generate_passphrase(&options).unwrap();
-    let words: Vec<&str> = phrase.expose_secret().split('-').collect();
+    let words: Vec<&str> = phrase.expose_secret().split(' ').collect();
     assert_eq!(words.len(), 5);
     let list = wordlist();
     assert!(words.iter().all(|word| list.contains(word)));

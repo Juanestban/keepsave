@@ -51,7 +51,7 @@ adds:
 | Main screen: groups, entry list, detail panel, inline generator | ✅ Done |
 | Clipboard auto-clear (15 s), KeePass shortcuts, autosave | ✅ Done |
 | Auto-lock (inactivity, minimize, OS sleep / session lock) | ✅ Done |
-| Google Drive connection and import on a new PC | ⬜ M4 |
+| Google Drive connection, upload and import on a new PC | 🟨 M4 (awaiting a real-account check) |
 | Bidirectional sync, merge and versioned backups | ⬜ M5 |
 | Settings, optional Windows 11 Acrylic/Mica, portable `.exe` | ⬜ M6 |
 
@@ -131,8 +131,10 @@ KEEPSAVE_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
 KEEPSAVE_GOOGLE_CLIENT_SECRET=your-client-secret
 ```
 
-`.env` is git-ignored. Never commit it. Without it, KeepSave still builds and
-works as a local-only password manager.
+`.env` is git-ignored. Never commit it. Environment variables with the same
+names take precedence over `.env`. The values are embedded at build time, so
+rebuild after changing them. Without them, KeepSave still builds and works as
+a local-only password manager, with the Drive actions hidden.
 
 ## Security model
 

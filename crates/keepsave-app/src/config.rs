@@ -7,6 +7,7 @@ use std::{
 };
 
 use directories::BaseDirs;
+use keepsave_sync::RemoteFile;
 use serde::{Deserialize, Serialize};
 
 const MAX_RECENT_VAULTS: usize = 8;
@@ -24,6 +25,21 @@ pub struct Config {
   pub lock_on_os_sleep: bool,
   /// Clear copied secrets after this long; 0 keeps them.
   pub clipboard_clear_seconds: u32,
+  /// Local vaults that have a copy on Google Drive. Kept last: TOML writes
+  /// arrays of tables after plain values.
+  pub drive_links: Vec<DriveLink>,
+}
+
+/// A local vault and its file on Drive.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DriveLink {
+  pub path: PathBuf,
+  pub file_id: String,
+  pub name: String,
+  /// Drive's `version` and `modifiedTime` when last synced, so later syncs
+  /// can tell whether the remote file changed.
+  pub version: Option<String>,
+  pub modified_time: Option<String>,
 }
 
 impl Default for Config {
@@ -35,6 +51,7 @@ impl Default for Config {
       lock_on_minimize: true,
       lock_on_os_sleep: true,
       clipboard_clear_seconds: 15,
+      drive_links: Vec::new(),
     }
   }
 }
@@ -71,6 +88,26 @@ impl Config {
   pub fn forget_vault(&mut self, path: &Path) {
     self.recent_vaults.retain(|known| known != path);
   }
+
+  pub fn drive_link(&self, path: &Path) -> Option<&DriveLink> {
+    self.drive_links.iter().find(|link| link.path == path)
+  }
+
+  /// Links `path` to `file`, replacing any earlier link of that vault.
+  pub fn link_drive(&mut self, path: &Path, file: &RemoteFile) {
+    self.unlink_drive(path);
+    self.drive_links.push(DriveLink {
+      path: path.to_owned(),
+      file_id: file.id.clone(),
+      name: file.name.clone(),
+      version: file.version.clone(),
+      modified_time: file.modified_time.clone(),
+    });
+  }
+
+  pub fn unlink_drive(&mut self, path: &Path) {
+    self.drive_links.retain(|link| link.path != path);
+  }
 }
 
 #[cfg(test)]
@@ -105,6 +142,34 @@ lock_after_minutes = 2
     assert_eq!(config.lock_after_minutes, 2);
     assert!(config.lock_on_minimize);
     assert_eq!(config.clipboard_clear_seconds, 15);
+  }
+
+  #[test]
+  fn drive_links_round_trip_and_replace() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("config.toml");
+    let file = |id: &str, version: Option<&str>| RemoteFile {
+      id: id.into(),
+      name: "Personal.kdbx".into(),
+      size: None,
+      modified_time: None,
+      version: version.map(Into::into),
+      trashed: false,
+    };
+
+    let mut config = Config::default();
+    config.remember_vault(Path::new("C:/v/Personal.kdbx"));
+    config.link_drive(Path::new("C:/v/Personal.kdbx"), &file("a", Some("3")));
+    config.link_drive(Path::new("C:/v/Personal.kdbx"), &file("b", None));
+    config.save_to(&path).unwrap();
+
+    let loaded = Config::load_from(&path);
+    assert_eq!(loaded, config);
+    assert_eq!(loaded.drive_links.len(), 1);
+    assert_eq!(loaded.drive_link(Path::new("C:/v/Personal.kdbx")).unwrap().file_id, "b");
+
+    config.unlink_drive(Path::new("C:/v/Personal.kdbx"));
+    assert!(config.drive_links.is_empty());
   }
 
   #[test]

@@ -18,7 +18,6 @@ dialog-filter = KeePass vault
 welcome-create = Create a new vault
 welcome-open = Open a .kdbx file
 welcome-import-drive = Import from Google Drive
-welcome-coming-soon = Coming soon
 welcome-recent = Back to recent vaults
 
 ## Create
@@ -167,3 +166,36 @@ dialog-close-title = Close without saving?
 dialog-close-body = The vault couldn't be saved. { $details }
 dialog-close-anyway = Close anyway
 dialog-stay = Stay
+
+## Google Drive
+
+drive-title = Import from Google Drive
+drive-subtitle = Pick a vault from the KeepSave folder in your Drive.
+drive-unavailable = Google Drive isn't set up in this build.
+drive-connect = Connect Google Drive
+drive-connect-short = Connect Drive
+drive-connect-hint = A browser tab opens so you can sign in to Google. KeepSave can only see the files it creates.
+drive-waiting = Waiting for the browser…
+drive-cancel = Cancel
+drive-cancel-tooltip = Click to cancel
+drive-loading = Looking for vaults…
+drive-picking = Choose where to save it…
+drive-downloading = Downloading { $name }…
+drive-empty = There are no vaults in your Drive's KeepSave folder yet.
+drive-retry = Try again
+drive-upload = Upload to Drive
+drive-uploading = Uploading…
+drive-linked = On Google Drive
+drive-linked-tooltip = Linked to “{ $name }” on Drive. Syncing changes arrives in the next version.
+drive-unlink = Unlink this vault
+drive-disconnect = Disconnect Google Drive
+drive-error-denied = Access wasn't granted in the browser.
+drive-error-timeout = Signing in took too long. Try again.
+drive-error-reauthorize = Google Drive was disconnected. Connect it again.
+drive-error-network = Couldn't reach Google. Check your connection.
+drive-browser-success-title = KeepSave is connected
+drive-browser-success-body = You can close this tab and go back to KeepSave.
+drive-browser-denied-title = KeepSave wasn't connected
+drive-browser-denied-body = Access wasn't granted. You can close this tab.
+dialog-import-title = Save the vault on this PC
+toast-drive-uploaded = Vault uploaded to Google Drive

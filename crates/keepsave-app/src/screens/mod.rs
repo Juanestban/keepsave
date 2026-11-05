@@ -1,6 +1,7 @@
 //! Screens and the navigation between them.
 
 mod create;
+mod drive_import;
 mod main;
 mod unlock;
 mod welcome;
@@ -10,14 +11,17 @@ use std::{f32::consts::TAU, io, path::PathBuf};
 use eframe::egui::{self, Align, Color32, Layout, Pos2, RichText, Sense, Shape, Stroke, Ui, Vec2};
 use fluent_bundle::FluentArgs;
 use keepsave_core::CoreError;
+use keepsave_sync::RemoteFile;
 
 pub use create::CreateVault;
+pub use drive_import::DriveImport;
 pub use main::MainScreen;
 pub use unlock::Unlock;
 pub use welcome::Welcome;
 
 use crate::{
   config::Config,
+  drive::DriveState,
   i18n::{I18n, Language},
   theme,
   worker::{OpenVault, Worker},
@@ -32,6 +36,7 @@ pub struct ScreenCtx<'a> {
   pub lift: f32,
   /// The OS went to sleep or locked the session since the last frame.
   pub os_lock: bool,
+  pub drive: &'a DriveState,
 }
 
 /// A request from a screen to the app.
@@ -46,6 +51,20 @@ pub enum Nav {
   Lock(PathBuf),
   SetLanguage(Language),
   ForgetVault(PathBuf),
+  ConnectDrive,
+  CancelDrive,
+  DisconnectDrive,
+  ImportFromDrive,
+  /// A vault was downloaded from Drive: link it and unlock it.
+  DriveImported {
+    path: PathBuf,
+    file: RemoteFile,
+  },
+  LinkDrive {
+    path: PathBuf,
+    file: RemoteFile,
+  },
+  UnlinkDrive(PathBuf),
 }
 
 pub fn error_message(i18n: &I18n, error: &CoreError) -> String {

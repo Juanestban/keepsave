@@ -18,7 +18,6 @@ dialog-filter = Bóveda de KeePass
 welcome-create = Crear una bóveda nueva
 welcome-open = Abrir un archivo .kdbx
 welcome-import-drive = Importar desde Google Drive
-welcome-coming-soon = Próximamente
 welcome-recent = Volver a las bóvedas recientes
 
 ## Create
@@ -167,3 +166,36 @@ dialog-close-title = ¿Cerrar sin guardar?
 dialog-close-body = No se pudo guardar la bóveda. { $details }
 dialog-close-anyway = Cerrar de todos modos
 dialog-stay = Quedarme
+
+## Google Drive
+
+drive-title = Importar desde Google Drive
+drive-subtitle = Elige una bóveda de la carpeta KeepSave de tu Drive.
+drive-unavailable = Google Drive no está configurado en esta compilación.
+drive-connect = Conectar Google Drive
+drive-connect-short = Conectar Drive
+drive-connect-hint = Se abrirá una pestaña del navegador para que inicies sesión en Google. KeepSave solo puede ver los archivos que crea.
+drive-waiting = Esperando al navegador…
+drive-cancel = Cancelar
+drive-cancel-tooltip = Haz clic para cancelar
+drive-loading = Buscando bóvedas…
+drive-picking = Elige dónde guardarla…
+drive-downloading = Descargando { $name }…
+drive-empty = Aún no hay bóvedas en la carpeta KeepSave de tu Drive.
+drive-retry = Reintentar
+drive-upload = Subir a Drive
+drive-uploading = Subiendo…
+drive-linked = En Google Drive
+drive-linked-tooltip = Vinculada a “{ $name }” en Drive. La sincronización de cambios llega en la próxima versión.
+drive-unlink = Desvincular esta bóveda
+drive-disconnect = Desconectar Google Drive
+drive-error-denied = No se concedió el acceso en el navegador.
+drive-error-timeout = El inicio de sesión tardó demasiado. Inténtalo de nuevo.
+drive-error-reauthorize = Google Drive se desconectó. Vuelve a conectarlo.
+drive-error-network = No se pudo conectar con Google. Revisa tu conexión.
+drive-browser-success-title = KeepSave está conectado
+drive-browser-success-body = Ya puedes cerrar esta pestaña y volver a KeepSave.
+drive-browser-denied-title = KeepSave no se conectó
+drive-browser-denied-body = No se concedió el acceso. Ya puedes cerrar esta pestaña.
+dialog-import-title = Guarda la bóveda en este PC
+toast-drive-uploaded = Bóveda subida a Google Drive

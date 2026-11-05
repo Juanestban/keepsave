@@ -8,4 +8,19 @@ repository.workspace = true
 authors.workspace = true
 
 [dependencies]
+base64 = "0.23"
 keepsave-core.workspace = true
+keyring = "4"
+rand = "0.10"
+reqwest = { version = "0.13", default-features = false, features = ["json", "rustls-no-provider", "query", "form"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+secrecy = { version = "0.10", features = ["serde"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+sha2 = "0.11"
+thiserror = "2"
+tokio = { version = "1.54.1", features = ["net", "io-util", "time", "sync", "macros", "rt"] }
+zeroize = "1"
+
+[dev-dependencies]
+tokio = { version = "1.54.1", features = ["rt", "macros", "net", "io-util"] }

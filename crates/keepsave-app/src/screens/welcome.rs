@@ -5,6 +5,7 @@ use egui_phosphor::regular as icon;
 
 use super::{Nav, ScreenCtx, emblem, link_pair, title};
 use crate::{
+  drive::DriveState,
   i18n::Language,
   theme,
   widgets::{ActionButton, centered_column, glass_card, link},
@@ -34,12 +35,16 @@ impl Welcome {
         if ui.add(open).clicked() {
           cx.worker.pick_vault_file(tr("dialog-open-title"), tr("dialog-filter"));
         }
-        // Lands in M4.
-        let drive = ActionButton::new(tr("welcome-import-drive")).icon(icon::GOOGLE_DRIVE_LOGO).full_width().enabled(false);
-        ui.add(drive);
-        ui.vertical_centered(|ui| {
-          ui.label(RichText::new(tr("welcome-coming-soon")).small().color(theme::TEXT_FAINT));
-        });
+        let available = !matches!(cx.drive, DriveState::Unavailable);
+        let drive = ActionButton::new(tr("welcome-import-drive")).icon(icon::GOOGLE_DRIVE_LOGO).full_width().enabled(available);
+        if ui.add(drive).clicked() {
+          nav = Some(Nav::ImportFromDrive);
+        }
+        if !available {
+          ui.vertical_centered(|ui| {
+            ui.label(RichText::new(tr("drive-unavailable")).small().color(theme::TEXT_FAINT));
+          });
+        }
       });
 
       ui.add_space(8.0);

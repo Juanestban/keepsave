@@ -43,12 +43,15 @@ rationale lives in [docs/DESIGN.md](docs/DESIGN.md).
 - [x] Auto-lock (inactivity, minimize, OS sleep / session lock)
 - [x] Inline password generator, entry history with restore, recycle bin restore
 
-## M4 — Google Drive connection ⬜
+## M4 — Google Drive connection 🟨
 
-- [ ] OAuth (loopback + PKCE); refresh token stored in `keyring`
-- [ ] `RemoteStore` trait and Drive REST implementation (folder, list, upload, download)
-- [ ] Import-from-Drive flow (new PC)
-- [ ] Link a vault to a Drive `fileId` in `config.toml`
+Code complete; waiting for an end-to-end check against a real Google account.
+
+- [x] OAuth (loopback + PKCE); refresh token stored in `keyring`
+- [x] `RemoteStore` trait and Drive REST implementation (folder, list, upload, download)
+- [x] Import-from-Drive flow (new PC)
+- [x] Link a vault to a Drive `fileId` in `config.toml`
+- [ ] Manual check with real credentials: connect, upload, import on another PC, disconnect
 
 ## M5 — Sync & merge ⬜
 

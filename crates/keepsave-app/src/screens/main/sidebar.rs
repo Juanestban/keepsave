@@ -1,10 +1,11 @@
-//! The vault name, its groups and the recycle bin.
+//! The vault name, its groups, Google Drive and the recycle bin.
 
 use eframe::egui::{self, Align, Align2, Color32, CornerRadius, FontId, Label, Layout, Pos2, Rect, Response, RichText, ScrollArea, Sense, Ui, Vec2};
 use egui_phosphor::regular as icon;
 
 use super::{Action, GroupKind, GroupRow, MainScreen};
 use crate::{
+  drive::DriveState,
   screens::ScreenCtx,
   theme,
   widgets::{HOVER_TIME, glass_panel, icon_button, single_line},
@@ -39,7 +40,9 @@ pub fn show(ui: &mut Ui, rect: Rect, screen: &MainScreen, cx: &ScreenCtx, action
     });
     ui.add_space(4.0);
 
-    let bin_space = if lists.bin.is_some() { ROW_HEIGHT + 12.0 } else { 0.0 };
+    let drive_shown = !matches!(cx.drive, DriveState::Unavailable);
+    let bottom_rows = usize::from(lists.bin.is_some()) + usize::from(drive_shown);
+    let bin_space = if bottom_rows > 0 { bottom_rows as f32 * (ROW_HEIGHT + 2.0) + 12.0 } else { 0.0 };
     ScrollArea::vertical().id_salt("main-groups").max_height((ui.available_height() - bin_space).max(0.0)).auto_shrink([false, true]).show(
       ui,
       |ui| {
@@ -66,8 +69,10 @@ pub fn show(ui: &mut Ui, rect: Rect, screen: &MainScreen, cx: &ScreenCtx, action
       },
     );
 
-    if let Some(bin) = &lists.bin {
-      ui.with_layout(Layout::bottom_up(Align::Min), |ui| {
+    // Bottom up: the bin sits at the very bottom, Drive above it.
+    ui.with_layout(Layout::bottom_up(Align::Min), |ui| {
+      ui.spacing_mut().item_spacing.y = 2.0;
+      if let Some(bin) = &lists.bin {
         let selected = !searching && bin.id == screen.group;
         let response = group_row(ui, bin, &tr("main-recycle-bin"), selected);
         if response.clicked() {
@@ -80,9 +85,82 @@ pub fn show(ui: &mut Ui, rect: Rect, screen: &MainScreen, cx: &ScreenCtx, action
             ui.close();
           }
         });
+      }
+      if drive_shown {
+        drive_section(ui, screen, cx, actions);
+      }
+    });
+  });
+}
+
+/// One row whose look and click depend on the Drive connection and on
+/// whether this vault is linked.
+fn drive_section(ui: &mut Ui, screen: &MainScreen, cx: &ScreenCtx, actions: &mut Vec<Action>) {
+  let tr = |key| cx.i18n.tr(key);
+  let link = cx.config.drive_link(&screen.open.path);
+  match cx.drive {
+    DriveState::Unavailable => {}
+    DriveState::Disconnected { error } => {
+      let mut response = drive_row(ui, icon::CLOUD_SLASH, &tr("drive-connect-short"), theme::ACCENT, false);
+      if let Some(error) = error {
+        response = response.on_hover_text(error);
+      }
+      if response.clicked() {
+        actions.push(Action::ConnectDrive);
+      }
+    }
+    DriveState::Connecting => {
+      let response = drive_row(ui, icon::CLOUD, &tr("drive-waiting"), theme::TEXT_MUTED, true).on_hover_text(tr("drive-cancel-tooltip"));
+      if response.clicked() {
+        actions.push(Action::CancelDrive);
+      }
+    }
+    DriveState::Connected(_) if screen.uploading => {
+      drive_row(ui, icon::CLOUD_ARROW_UP, &tr("drive-uploading"), theme::TEXT_MUTED, true);
+    }
+    DriveState::Connected(_) => {
+      let response = match link {
+        Some(link) => drive_row(ui, icon::CLOUD_CHECK, &tr("drive-linked"), theme::SUCCESS, false).on_hover_text(cx.i18n.tr_arg(
+          "drive-linked-tooltip",
+          "name",
+          link.name.clone(),
+        )),
+        None => {
+          let response = drive_row(ui, icon::CLOUD_ARROW_UP, &tr("drive-upload"), theme::ACCENT, false);
+          if response.clicked() {
+            actions.push(Action::UploadToDrive);
+          }
+          response
+        }
+      };
+      response.context_menu(|ui| {
+        if link.is_some() && ui.button(tr("drive-unlink")).clicked() {
+          actions.push(Action::UnlinkDrive);
+          ui.close();
+        }
+        if ui.button(tr("drive-disconnect")).clicked() {
+          actions.push(Action::DisconnectDrive);
+          ui.close();
+        }
       });
     }
-  });
+  }
+}
+
+fn drive_row(ui: &mut Ui, glyph: &str, label: &str, color: Color32, busy: bool) -> Response {
+  let (rect, response) = ui.allocate_exact_size(Vec2::new(ui.available_width(), ROW_HEIGHT), Sense::click());
+  let hover = ui.ctx().animate_bool_with_time(response.id.with("hover"), response.hovered(), HOVER_TIME);
+  let painter = ui.painter();
+  painter.rect_filled(rect, CornerRadius::same(10), Color32::TRANSPARENT.lerp_to_gamma(theme::GLASS_FILL_HOVER, hover));
+  painter.text(Pos2::new(rect.left() + 20.0, rect.center().y), Align2::CENTER_CENTER, glyph, theme::icon_font(17.0), color);
+  let reserve = if busy { 32.0 } else { 8.0 };
+  let text = single_line(ui, label, FontId::proportional(14.5), color, rect.right() - reserve - (rect.left() + 40.0));
+  ui.painter().galley(Pos2::new(rect.left() + 40.0, rect.center().y - text.size().y / 2.0), text, color);
+  if busy {
+    let spinner = Rect::from_center_size(Pos2::new(rect.right() - 18.0, rect.center().y), Vec2::splat(14.0));
+    egui::Spinner::new().size(14.0).color(theme::TEXT_MUTED).paint_at(ui, spinner);
+  }
+  response.on_hover_cursor(egui::CursorIcon::PointingHand)
 }
 
 /// A selectable group: icon, name and entry count.

@@ -99,7 +99,8 @@ Implementation notes:
 ### Q12 — Secrets vs. settings
 
 - The Google refresh token goes in the OS credential store (crate `keyring`:
-  Windows Credential Manager, macOS Keychain, Linux Secret Service).
+  Windows Credential Manager, macOS Keychain, Linux Secret Service), under
+  service `KeepSave`, account `google-drive`.
 - Settings go in `config.toml` under the platform config dir (crate
   `directories`), e.g. `%APPDATA%\KeepSave\config.toml`. That covers language,
   recent vaults, lock timers, appearance, and the Drive `fileId` linked to
@@ -117,7 +118,18 @@ backup copy is kept in a separate folder on every upload.
 - The user's own Google Cloud project with an OAuth client of type
   **Desktop app**.
 - Flow: system browser → loopback redirect (`http://127.0.0.1:<random port>`)
-  → PKCE (`oauth2` crate).
+  → PKCE (S256). The flow is three HTTP requests, so it is written by hand on
+  `reqwest` instead of pulling in the `oauth2` crate.
+- The authorization request asks for `access_type=offline` and
+  `prompt=consent`, so Google always returns a refresh token. The loopback
+  listener gives up after 5 minutes and the user can cancel it.
+- The access token lives only in memory. A refresh token that Google rejects
+  (`invalid_grant`) disconnects Drive and asks the user to connect again.
+- **Credentials:** the client ID and secret are embedded at build time. A
+  build script reads `KEEPSAVE_GOOGLE_CLIENT_ID` and
+  `KEEPSAVE_GOOGLE_CLIENT_SECRET` from the environment, or from `.env` at the
+  repo root. A build without them works as a local-only manager and hides the
+  Drive actions.
 - Scope: `https://www.googleapis.com/auth/drive.file`. The app sees only files
   it created, in a visible `KeepSave/` folder, so mobile KeePass apps can open
   the same file.
@@ -141,12 +153,34 @@ backup copy is kept in a separate folder on every upload.
   `DeletedObjects` is honored so deletions propagate, and the losing version
   of an entry is pushed into that entry's history, so nothing is lost.
 
+### Drive in the UI before Settings (M4)
+
+Until the Settings screen exists, Drive lives in the main screen's sidebar,
+above the recycle bin:
+
+- **Not connected:** "Connect Google Drive". While the browser is open, a
+  spinner and a Cancel action.
+- **Connected, vault not linked:** "Upload to Drive" creates the file in
+  `KeepSave/` and links the vault.
+- **Linked:** "On Google Drive". Its menu unlinks the vault or disconnects
+  Drive.
+
+In M4 KeepSave only **creates** files on Drive and downloads them; it never
+overwrites a Drive file. Updating a linked file needs the merge from M5, so a
+change made on another PC can't be lost.
+
+Links are kept in `config.toml` as `[[drive_links]]` entries with the local
+path, the Drive `file_id`, and the `version` and `modified_time` last seen
+(used by M5 to detect remote changes). Disconnecting keeps the links, so
+reconnecting resumes them.
+
 ### Q17 — "New PC" flow
 
 1. Welcome → **Import from Google Drive**
 2. OAuth
 3. List the `.kdbx` files in `KeepSave/`
-4. Pick one and choose a local folder (default `Documents\KeepSave\`)
+4. Pick one and choose where to save it (a save dialog that starts in
+   `Documents\KeepSave\`, created if missing)
 5. Download and unlock
 6. The vault is now linked: its `fileId` is saved in `config.toml`
 
@@ -260,7 +294,7 @@ The project is a Cargo workspace:
 ```
 crates/
   keepsave-core/   # model, KDBX I/O, merge, generator — no UI, no network
-  keepsave-sync/   # OAuth + minimal Drive REST client (reqwest + oauth2)
+  keepsave-sync/   # OAuth + minimal Drive REST client (reqwest, hand-written OAuth)
   keepsave-app/    # eframe/egui binary: theme, animations, i18n, screens
 ```
 
