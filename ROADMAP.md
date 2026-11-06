@@ -95,12 +95,20 @@ Code complete; waiting for a check with two PCs (or two vault copies) on a real 
 - [x] Version 1.2.0
 - [ ] Manual check: go through the guide with a real Google account and sync a vault
 
+## M9 — Windows Hello quick unlock ✅
+
+- [x] Design (Q25): session only, `KeyCredentialManager`, opt-in per vault
+- [x] Seal the master password with a key derived from a Hello signature (AES-256-GCM, RAM only)
+- [x] Unlock screen: "Unlock with Windows Hello" button and opt-in checkbox
+- [x] Settings → Security: Windows Hello toggle per recent vault
+- [x] Drop the sealed password on exit, opt-out, another vault, or a password that no longer opens the file
+- [ ] Manual check: enable, lock, unlock with Hello; cancel the prompt; restart needs the password
+
 ## Post-v1 backlog
 
 - Auto-type
 - Attachments
 - Key files
-- Windows Hello quick unlock
 - Entry templates
 - Import from CSV and other managers
 - Real backdrop blur

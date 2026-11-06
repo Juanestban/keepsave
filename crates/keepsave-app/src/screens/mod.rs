@@ -26,6 +26,7 @@ pub use welcome::Welcome;
 use crate::{
   config::Config,
   drive::DriveState,
+  hello::{HelloError, Sealed},
   i18n::{I18n, Language},
   theme,
   worker::{OpenVault, Worker},
@@ -44,6 +45,10 @@ pub struct ScreenCtx<'a> {
   /// Settings or another modal is open on top, so the screen leaves the
   /// keyboard alone.
   pub overlay: bool,
+  /// Windows Hello can be used on this device.
+  pub hello: bool,
+  /// The vault Windows Hello can unlock in this session.
+  pub sealed: Option<&'a Sealed>,
 }
 
 /// A request from a screen to the app.
@@ -60,6 +65,13 @@ pub enum Nav {
   SetLanguage(Option<Language>),
   ForgetVault(PathBuf),
   ForgetAllVaults,
+  /// Turns Windows Hello quick unlock on or off for a vault.
+  SetQuickUnlock {
+    path: PathBuf,
+    on: bool,
+  },
+  /// The sealed password no longer opens its vault.
+  DropQuickUnlock,
   OpenSettings,
   /// Connects, or opens the setup guide when there is no OAuth client.
   ConnectDrive,
@@ -104,6 +116,15 @@ pub fn error_message(i18n: &I18n, error: &CoreError) -> String {
       args.set("details", other.to_string());
       i18n.tr_args("error-generic", &args)
     }
+  }
+}
+
+pub fn hello_error_message(i18n: &I18n, error: &HelloError) -> String {
+  match error {
+    HelloError::Unsupported => i18n.tr("hello-unavailable"),
+    HelloError::Cancelled => i18n.tr("hello-cancelled"),
+    HelloError::Stale => i18n.tr("unlock-error-hello-stale"),
+    HelloError::Failed(details) => i18n.tr_arg("error-hello", "details", details.clone()),
   }
 }
 

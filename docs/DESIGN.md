@@ -6,7 +6,7 @@ file format, adds a minimalist dark "liquid glass" UI, and syncs vaults
 through Google Drive so they can be restored on any PC.
 
 This document records every design decision agreed before implementation
-(Q1–Q23, plus Q24 added later) and the reasoning behind each. Change a decision here first, then in
+(Q1–Q23, plus Q24–Q25 added later) and the reasoning behind each. Change a decision here first, then in
 code.
 
 ## 1. Scope
@@ -63,7 +63,43 @@ encryption leaks metadata.
 - KDF: Argon2id. Parameters are calibrated when a vault is created so that
   unlock takes about 1 s on the current machine, with about 64 MiB of memory.
 - v1 unlocks with the master password only.
-- Key files and Windows Hello quick unlock come later.
+- Windows Hello quick unlock: see Q25. Key files come later.
+
+### Q25 — Windows Hello quick unlock
+
+- **Session only.** After a vault is unlocked with its master password,
+  Windows Hello (face, fingerprint or PIN) can unlock it again after a lock
+  (inactivity, minimize, OS sleep). The master password is still required
+  after the app restarts, and for any other vault.
+- **Opt-in per vault.** A checkbox under the password on the Unlock screen
+  and a toggle per recent vault under Settings → Security. The list of
+  enabled vaults is kept in `config.toml` (`quick_unlock`, paths only, never
+  a secret). Forgetting a vault also turns it off.
+- **Crypto: `KeyCredentialManager`, not `UserConsentVerifier`.** A
+  KeepSave key credential (TPM-backed RSA, created on first use) signs a
+  random 32-byte challenge. RSA PKCS#1 v1.5 signatures are deterministic, so
+  the same challenge always yields the same signature. The AES-256-GCM key
+  that encrypts the master password is SHA-256 of a domain label plus that
+  signature. Only the challenge, nonce and ciphertext stay in RAM; the
+  signature and derived key are wiped right after use. Without Hello
+  verification nothing can decrypt the password, unlike DPAPI, which any
+  process of the same user can call.
+- **When it seals.** Sealing needs a Hello prompt, so it happens right after
+  a password unlock of an enabled vault, or when the open vault is enabled
+  in Settings. Cancelling the prompt just means the next unlock needs the
+  password. One sealed vault at a time: opening another vault drops it.
+- **When it is dropped.** On exit, when the vault is turned off, when another
+  vault is opened, and when the sealed password no longer opens the file
+  (e.g. its password was changed in another client). Each of these falls
+  back to the master password.
+- **Unlock screen.** For the sealed vault, a primary "Unlock with Windows
+  Hello" button appears above the password field; Enter on an empty password
+  field does the same. The prompt is not shown on its own: after an OS sleep
+  the user may be away.
+- Hello runs on the worker (its WinRT calls block). The prompt window can
+  open behind ours, so a helper brings the "Credential Dialog Xaml Host"
+  window to the front while it waits.
+- Other platforms: hidden, as Hello is Windows only.
 
 ### Q10 — Memory hygiene and locking
 

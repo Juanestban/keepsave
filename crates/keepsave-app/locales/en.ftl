@@ -8,6 +8,9 @@ common-back = Back
 reveal-show = Show password
 reveal-hide = Hide password
 error-generic = Something went wrong: { $details }
+error-hello = Windows Hello failed: { $details }
+hello-unavailable = Windows Hello isn't set up on this device.
+hello-cancelled = Windows Hello was cancelled.
 
 dialog-open-title = Open a KeePass vault
 dialog-create-title = Save your new vault
@@ -55,6 +58,10 @@ unlock-open-other = Open another vault
 unlock-create = Create a new vault
 unlock-error-wrong-password = Wrong master password.
 unlock-error-not-found = The vault file could not be found.
+unlock-error-hello-stale = Windows Hello can no longer open this vault. Enter your master password.
+unlock-hello = Unlock with Windows Hello
+unlock-hello-or = or use your master password
+unlock-hello-remember = Use Windows Hello after locking
 
 ## Main screen
 
@@ -245,6 +252,8 @@ settings-lock-after-hint = Without mouse or keyboard input for this long.
 settings-lock-minimize = Lock when the window is minimized
 settings-lock-sleep = Lock when the PC sleeps or the session locks
 settings-lock-sleep-windows = Only available on Windows for now.
+settings-hello = Windows Hello
+settings-hello-hint = After you unlock a vault with its master password, Windows Hello can unlock it again until you close KeepSave.
 settings-clipboard-clear = Clear copied secrets after
 settings-clipboard-clear-hint = Only if the clipboard still holds what KeepSave copied.
 settings-clipboard-keep = Never

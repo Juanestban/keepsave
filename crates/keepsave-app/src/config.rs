@@ -29,6 +29,8 @@ pub struct Config {
   pub animated_background: bool,
   /// Look for a new version at startup and every few hours.
   pub check_for_updates: bool,
+  /// Vaults that Windows Hello may unlock again after a lock.
+  pub quick_unlock: Vec<PathBuf>,
   /// Local vaults that have a copy on Google Drive. Kept last: TOML writes
   /// arrays of tables after plain values.
   pub drive_links: Vec<DriveLink>,
@@ -60,6 +62,7 @@ impl Default for Config {
       clipboard_clear_seconds: 15,
       animated_background: true,
       check_for_updates: true,
+      quick_unlock: Vec::new(),
       drive_links: Vec::new(),
     }
   }
@@ -94,12 +97,26 @@ impl Config {
     self.recent_vaults.truncate(MAX_RECENT_VAULTS);
   }
 
+  /// Also turns off its quick unlock.
   pub fn forget_vault(&mut self, path: &Path) {
     self.recent_vaults.retain(|known| known != path);
+    self.set_quick_unlock(path, false);
   }
 
   pub fn forget_all_vaults(&mut self) {
     self.recent_vaults.clear();
+    self.quick_unlock.clear();
+  }
+
+  pub fn quick_unlock(&self, path: &Path) -> bool {
+    self.quick_unlock.iter().any(|known| known == path)
+  }
+
+  pub fn set_quick_unlock(&mut self, path: &Path, on: bool) {
+    self.quick_unlock.retain(|known| known != path);
+    if on {
+      self.quick_unlock.push(path.to_owned());
+    }
   }
 
   pub fn drive_link(&self, path: &Path) -> Option<&DriveLink> {
@@ -231,5 +248,22 @@ lock_after_minutes = 2
 
     config.forget_vault(Path::new("v5.kdbx"));
     assert!(!config.recent_vaults.iter().any(|p| p == Path::new("v5.kdbx")));
+  }
+
+  #[test]
+  fn quick_unlock_is_per_vault_and_forgotten_with_it() {
+    let (a, b) = (Path::new("a.kdbx"), Path::new("b.kdbx"));
+    let mut config = Config::default();
+    config.set_quick_unlock(a, true);
+    config.set_quick_unlock(a, true);
+    config.set_quick_unlock(b, true);
+    assert_eq!(config.quick_unlock.len(), 2);
+    config.set_quick_unlock(b, false);
+    assert!(config.quick_unlock(a) && !config.quick_unlock(b));
+    config.forget_vault(a);
+    assert!(!config.quick_unlock(a));
+    config.set_quick_unlock(b, true);
+    config.forget_all_vaults();
+    assert!(config.quick_unlock.is_empty());
   }
 }

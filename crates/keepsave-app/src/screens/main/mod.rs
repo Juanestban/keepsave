@@ -286,6 +286,10 @@ impl MainScreen {
     &self.open.vault
   }
 
+  pub fn open_vault(&self) -> &OpenVault {
+    &self.open
+  }
+
   pub fn on_event(&mut self, event: Event, cx: &ScreenCtx) -> Option<Nav> {
     match event {
       Event::VaultSaved { generation, result } => self.saved(generation, result, cx),

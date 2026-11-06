@@ -150,6 +150,11 @@ impl Vault {
     self.db.meta.master_key_changed = Some(Times::now());
   }
 
+  /// A copy of the master password, e.g. to seal it for a quick unlock.
+  pub fn master_password(&self) -> SecretString {
+    self.password.clone()
+  }
+
   pub fn verify_password(&self, candidate: &SecretString) -> bool {
     self.password.expose_secret() == candidate.expose_secret()
   }

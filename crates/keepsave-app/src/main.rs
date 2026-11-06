@@ -9,6 +9,7 @@ mod clipboard;
 mod config;
 mod drive;
 mod fonts;
+mod hello;
 mod i18n;
 mod screens;
 mod session;

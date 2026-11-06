@@ -62,6 +62,10 @@ pub struct SettingsCtx<'a> {
   /// Why `config.toml` couldn't be written, if it couldn't.
   pub config_error: Option<&'a str>,
   pub update: &'a UpdateState,
+  /// Windows Hello can be used on this device.
+  pub hello: bool,
+  /// Why Windows Hello couldn't seal the open vault last time.
+  pub hello_error: Option<&'a str>,
 }
 
 /// What the user asked of the app from Settings.
@@ -193,6 +197,34 @@ fn security(ui: &mut Ui, cx: &SettingsCtx, config: &mut Config) {
   setting(ui, &tr("settings-clipboard-clear"), Some(&tr("settings-clipboard-clear-hint")), |ui| {
     choice(ui, "settings-clipboard-clear", &mut config.clipboard_clear_seconds, &CLIPBOARD_SECONDS, seconds);
   });
+  if cfg!(windows) {
+    hello(ui, cx, config);
+  }
+}
+
+/// Windows Hello quick unlock, per recent vault (Q25).
+fn hello(ui: &mut Ui, cx: &SettingsCtx, config: &mut Config) {
+  let tr = |key| cx.i18n.tr(key);
+  section(ui, &tr("settings-hello"), Some(&tr("settings-hello-hint")));
+  if !cx.hello {
+    notice(ui, icon::INFO, &tr("hello-unavailable"), theme::TEXT_MUTED);
+    return;
+  }
+  if let Some(error) = cx.hello_error {
+    notice(ui, icon::WARNING_CIRCLE, error, theme::DANGER);
+  }
+  if config.recent_vaults.is_empty() {
+    ui.label(RichText::new(tr("settings-recent-empty")).color(theme::TEXT_FAINT));
+    return;
+  }
+  for path in config.recent_vaults.clone() {
+    let mut on = config.quick_unlock(&path);
+    setting(ui, &file_name(&path), Some(&path.display().to_string()), |ui| {
+      if toggle(ui, &mut on, true, &tr("settings-hello")).changed() {
+        config.set_quick_unlock(&path, on);
+      }
+    });
+  }
 }
 
 fn drive(ui: &mut Ui, cx: &SettingsCtx, config: &Config) -> Option<Nav> {

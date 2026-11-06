@@ -8,6 +8,9 @@ common-back = Volver
 reveal-show = Mostrar contraseña
 reveal-hide = Ocultar contraseña
 error-generic = Algo salió mal: { $details }
+error-hello = Windows Hello falló: { $details }
+hello-unavailable = Windows Hello no está configurado en este equipo.
+hello-cancelled = Se canceló Windows Hello.
 
 dialog-open-title = Abrir una bóveda de KeePass
 dialog-create-title = Guardar tu nueva bóveda
@@ -55,6 +58,10 @@ unlock-open-other = Abrir otra bóveda
 unlock-create = Crear una bóveda nueva
 unlock-error-wrong-password = Contraseña maestra incorrecta.
 unlock-error-not-found = No se encontró el archivo de la bóveda.
+unlock-error-hello-stale = Windows Hello ya no puede abrir esta bóveda. Escribe tu contraseña maestra.
+unlock-hello = Desbloquear con Windows Hello
+unlock-hello-or = o usa tu contraseña maestra
+unlock-hello-remember = Usar Windows Hello tras bloquear
 
 ## Main screen
 
@@ -245,6 +252,8 @@ settings-lock-after-hint = Tras este tiempo sin usar el ratón ni el teclado.
 settings-lock-minimize = Bloquear al minimizar la ventana
 settings-lock-sleep = Bloquear al suspender el PC o bloquear la sesión
 settings-lock-sleep-windows = Por ahora solo en Windows.
+settings-hello = Windows Hello
+settings-hello-hint = Después de desbloquear una bóveda con su contraseña maestra, Windows Hello puede volver a desbloquearla hasta que cierres KeepSave.
 settings-clipboard-clear = Borrar lo copiado tras
 settings-clipboard-clear-hint = Solo si el portapapeles aún contiene lo que copió KeepSave.
 settings-clipboard-keep = Nunca

@@ -60,9 +60,10 @@ adds:
 | Portable release `.exe` | 🟨 M6 (awaiting a KeePassXC check) |
 | MSI installer (per user, no admin rights) | ✅ Done |
 | Update checks with an in-app banner, download and restart | ✅ Done |
+| Windows Hello quick unlock after a lock (per vault, until exit) | 🟨 M9 (awaiting a manual check) |
 
-Planned next: auto-type, attachments, key files, Windows Hello unlock,
-entry templates, CSV import and code signing.
+Planned next: auto-type, attachments, key files, entry templates, CSV import
+and code signing.
 
 ## Installation
 

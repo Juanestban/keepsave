@@ -11,9 +11,11 @@ use crate::{
   config::Config,
   drive::{self, DriveState},
   fonts,
+  hello::{HelloError, Sealed},
   i18n::{I18n, Language},
   screens::{
     CreateVault, DriveImport, DriveSetup, DriveSetupRequest, MainScreen, Nav, ScreenCtx, Settings, SettingsCtx, SettingsRequest, Unlock, Welcome,
+    hello_error_message,
   },
   session, theme,
   update::Updater,
@@ -54,6 +56,15 @@ pub struct KeepSaveApp {
   /// Why `config.toml` couldn't be written last time.
   config_error: Option<String>,
   updater: Updater,
+  /// Windows Hello can be used on this device.
+  hello: bool,
+  /// The master password Windows Hello can open, for one vault, until exit.
+  sealed: Option<Sealed>,
+  /// The vault a Hello prompt was already shown for since it was opened,
+  /// so a cancelled prompt isn't asked again at once.
+  seal_tried: Option<PathBuf>,
+  /// Why sealing failed last time.
+  hello_error: Option<String>,
 }
 
 impl KeepSaveApp {
@@ -68,13 +79,15 @@ impl KeepSaveApp {
     let i18n = I18n::new(language);
 
     let client = drive::load_client();
+    let worker = Worker::new(cc.egui_ctx.clone()).expect("start the background runtime");
+    worker.check_hello();
     Self {
       drive: DriveState::startup(client.as_ref(), &i18n),
       client,
       drive_setup: None,
       connecting: None,
       i18n,
-      worker: Worker::new(cc.egui_ctx.clone()).expect("start the background runtime"),
+      worker,
       background: Background::new(cc),
       config,
       config_path,
@@ -83,6 +96,10 @@ impl KeepSaveApp {
       settings: None,
       config_error: None,
       updater: Updater::new(),
+      hello: false,
+      sealed: None,
+      seal_tried: None,
+      hello_error: None,
     }
   }
 
@@ -101,6 +118,11 @@ impl KeepSaveApp {
         self.config.remember_vault(&open.path);
         self.save_config();
         let pending = self.config.drive_link(&open.path).is_some_and(|link| link.pending);
+        // One sealed vault at a time (Q25).
+        if self.sealed.as_ref().is_some_and(|sealed| sealed.path != open.path) {
+          self.sealed = None;
+        }
+        self.seal_tried = None;
         Screen::Main(Box::new(MainScreen::new(open, pending)))
       }
       // Replacing the screen drops the vault, which wipes its secrets,
@@ -123,6 +145,7 @@ impl KeepSaveApp {
       Nav::ForgetAllVaults => {
         self.config.forget_all_vaults();
         self.save_config();
+        self.sealed = None;
         match self.screen {
           Screen::Unlock(_) => Screen::Welcome(Welcome),
           _ => return,
@@ -131,6 +154,8 @@ impl KeepSaveApp {
       Nav::ForgetVault(path) => {
         self.config.forget_vault(&path);
         self.save_config();
+        self.refresh_quick_unlock();
+
         match &mut self.screen {
           Screen::Unlock(_) if self.config.recent_vaults.is_empty() => Screen::Welcome(Welcome),
           Screen::Unlock(unlock) => {
@@ -139,6 +164,18 @@ impl KeepSaveApp {
           }
           _ => return,
         }
+      }
+      Nav::SetQuickUnlock { path, on } => {
+        self.config.set_quick_unlock(&path, on);
+        self.save_config();
+        // Asked for explicitly: prompt even if a prompt was cancelled before.
+        self.seal_tried = None;
+        self.refresh_quick_unlock();
+        return;
+      }
+      Nav::DropQuickUnlock => {
+        self.sealed = None;
+        return;
       }
       Nav::ConnectDrive => {
         match &self.client {
@@ -222,8 +259,17 @@ impl KeepSaveApp {
         self.updater.request_restart();
         self.settings = None;
         if let Screen::Main(main) = &mut self.screen {
-          let cx =
-            ScreenCtx { i18n: &self.i18n, worker: &self.worker, config: &self.config, lift: 0.0, os_lock: false, drive: &self.drive, overlay: false };
+          let cx = ScreenCtx {
+            i18n: &self.i18n,
+            worker: &self.worker,
+            config: &self.config,
+            lift: 0.0,
+            os_lock: false,
+            drive: &self.drive,
+            overlay: false,
+            hello: self.hello,
+            sealed: self.sealed.as_ref(),
+          };
           if let Some(nav) = main.lock(&cx) {
             self.navigate(nav, ctx);
           }
@@ -233,6 +279,7 @@ impl KeepSaveApp {
     };
     self.screen = screen;
     self.screen_since = None;
+    self.refresh_quick_unlock();
   }
 
   /// Drops the Drive connection and its refresh token, and cancels a
@@ -282,6 +329,24 @@ impl KeepSaveApp {
     }
   }
 
+  /// Keeps the sealed password in line with the config and the open vault
+  /// (Q25): drops it when its vault is turned off, and seals the open vault
+  /// when it is turned on and not sealed yet.
+  fn refresh_quick_unlock(&mut self) {
+    if self.sealed.as_ref().is_some_and(|sealed| !self.config.quick_unlock(&sealed.path)) {
+      self.sealed = None;
+    }
+    let Screen::Main(main) = &self.screen else {
+      return;
+    };
+    let open = main.open_vault();
+    let sealed = self.sealed.as_ref().is_some_and(|sealed| sealed.path == open.path);
+    if self.hello && !sealed && self.seal_tried.as_ref() != Some(&open.path) && self.config.quick_unlock(&open.path) {
+      self.seal_tried = Some(open.path.clone());
+      self.worker.seal_quick_unlock(open.path.clone(), open.vault.master_password());
+    }
+  }
+
   fn save_config(&mut self) {
     if let Some(path) = &self.config_path {
       // Settings are a convenience: failing to write them must not
@@ -313,11 +378,17 @@ impl KeepSaveApp {
       drive: &self.drive,
       has_client: self.client.is_some(),
       config_error: self.config_error.as_deref(),
+      hello: self.hello,
+      hello_error: self.hello_error.as_deref(),
       update: self.updater.state(),
     };
     let request = settings.show(ctx, &cx, &mut self.config);
     if self.config != before {
       self.save_config();
+      if self.config.quick_unlock != before.quick_unlock {
+        self.seal_tried = None;
+        self.refresh_quick_unlock();
+      }
     }
     match request? {
       SettingsRequest::Close => {
@@ -338,6 +409,23 @@ impl KeepSaveApp {
       return None;
     }
     match event {
+      Event::HelloChecked(available) => {
+        self.hello = available;
+        self.refresh_quick_unlock();
+        return None;
+      }
+      Event::QuickUnlockSealed(result) => {
+        match result {
+          // The vault may have been turned off while the prompt was open.
+          Ok(sealed) if self.config.quick_unlock(&sealed.path) => {
+            self.sealed = Some(sealed);
+            self.hello_error = None;
+          }
+          Ok(_) | Err(HelloError::Cancelled) => {}
+          Err(error) => self.hello_error = Some(hello_error_message(&self.i18n, &error)),
+        }
+        return None;
+      }
       Event::UpdateChecked(result) => {
         self.updater.checked(result, &self.i18n);
         return None;
@@ -362,6 +450,8 @@ impl KeepSaveApp {
       os_lock: false,
       drive: &self.drive,
       overlay: self.settings.is_some() || self.drive_setup.is_some(),
+      hello: self.hello,
+      sealed: self.sealed.as_ref(),
     };
     match &mut self.screen {
       Screen::Welcome(welcome) => welcome.on_event(event),
@@ -427,6 +517,8 @@ impl eframe::App for KeepSaveApp {
           os_lock,
           drive: &self.drive,
           overlay: self.settings.is_some() || self.drive_setup.is_some(),
+          hello: self.hello,
+          sealed: self.sealed.as_ref(),
         };
         match &mut self.screen {
           Screen::Welcome(welcome) => welcome.ui(ui, &cx),

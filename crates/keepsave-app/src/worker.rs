@@ -18,7 +18,10 @@ use keepsave_sync::{
 };
 use tokio::{runtime::Runtime, task::AbortHandle};
 
-use crate::update::Progress;
+use crate::{
+  hello::{self, HelloError, Sealed},
+  update::Progress,
+};
 
 /// An unlocked vault and the file it lives in.
 pub struct OpenVault {
@@ -26,11 +29,20 @@ pub struct OpenVault {
   pub path: PathBuf,
 }
 
+/// Why a Windows Hello unlock didn't open the vault.
+pub enum QuickUnlockError {
+  Hello(HelloError),
+  Vault(CoreError),
+}
+
 pub enum Event {
   VaultFilePicked(Option<PathBuf>),
   NewVaultPathPicked(Option<PathBuf>),
   VaultCreated(Result<OpenVault, CoreError>),
   VaultUnlocked(Result<OpenVault, CoreError>),
+  QuickUnlocked(Result<OpenVault, QuickUnlockError>),
+  HelloChecked(bool),
+  QuickUnlockSealed(Result<Sealed, HelloError>),
   /// `generation` identifies the snapshot that was written.
   VaultSaved {
     generation: u64,
@@ -127,6 +139,26 @@ impl Worker {
     self.spawn_blocking(move || {
       let result = Vault::open(&path, password).map(|vault| OpenVault { vault, path });
       Event::VaultUnlocked(result)
+    });
+  }
+
+  pub fn check_hello(&self) {
+    self.spawn_blocking(|| Event::HelloChecked(hello::available()));
+  }
+
+  /// Asks for Windows Hello and keeps `password` sealed for `path`.
+  pub fn seal_quick_unlock(&self, path: PathBuf, password: SecretString) {
+    self.spawn_blocking(move || Event::QuickUnlockSealed(hello::seal(path, &password)));
+  }
+
+  /// Asks for Windows Hello, then unlocks with the sealed password.
+  pub fn quick_unlock(&self, sealed: Sealed) {
+    self.spawn_blocking(move || {
+      let result = hello::unseal(&sealed).map_err(QuickUnlockError::Hello).and_then(|password| {
+        let path = sealed.path.clone();
+        Vault::open(&path, password).map(|vault| OpenVault { vault, path }).map_err(QuickUnlockError::Vault)
+      });
+      Event::QuickUnlocked(result)
     });
   }
 

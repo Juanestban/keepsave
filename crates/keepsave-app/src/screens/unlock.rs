@@ -1,5 +1,6 @@
-//! Recent vaults as glass cards and the master password field. Argon2 runs
-//! on the worker while the emblem animates.
+//! Recent vaults as glass cards, the master password field and, for the
+//! vault sealed this session, Windows Hello. Argon2 and Hello run on the
+//! worker while the emblem animates.
 
 use std::path::{Path, PathBuf};
 
@@ -8,12 +9,13 @@ use egui_phosphor::regular as icon;
 use keepsave_core::{CoreError, SecretString};
 use zeroize::Zeroizing;
 
-use super::{Nav, ScreenCtx, emblem, error_message, link_pair, title};
+use super::{Nav, ScreenCtx, emblem, error_message, hello_error_message, link_pair, title};
 use crate::{
   config::Config,
+  hello::{HelloError, Sealed},
   theme,
-  widgets::{ActionButton, centered_column, field_label, glass_card, icon_button, notice, password_field},
-  worker::Event,
+  widgets::{ActionButton, centered_column, field_label, glass_card, icon_button, notice, password_field, toggle},
+  worker::{Event, QuickUnlockError},
 };
 
 const SHAKE_TIME: f64 = 0.45;
@@ -25,6 +27,8 @@ pub struct Unlock {
   reveal: bool,
   error: Option<String>,
   busy: bool,
+  /// The unlock in progress is the Windows Hello one.
+  quick: bool,
   focus_password: bool,
   shake_requested: bool,
   shake_started: Option<f64>,
@@ -38,6 +42,7 @@ impl Unlock {
       reveal: false,
       error: None,
       busy: false,
+      quick: false,
       focus_password: true,
       shake_requested: false,
       shake_started: None,
@@ -56,6 +61,7 @@ impl Unlock {
     let tr = |key| cx.i18n.tr(key);
     let mut nav = None;
     let mut submit = false;
+    let mut quick = None;
     let offset = Vec2::new(self.shake_offset(ui), cx.lift);
 
     // A vault picked from the dialog may not be in the recent list yet.
@@ -65,6 +71,8 @@ impl Unlock {
     {
       vaults.insert(0, selected.clone());
     }
+
+    let sealed = cx.sealed.filter(|sealed| self.selected.as_ref() == Some(&sealed.path));
 
     centered_column(ui, Id::new("unlock"), 460.0, offset, |ui| {
       let icon = if self.busy { icon::LOCK_OPEN } else { icon::LOCK };
@@ -91,6 +99,15 @@ impl Unlock {
         });
         ui.add_space(6.0);
 
+        if let Some(sealed) = sealed {
+          let button =
+            ActionButton::new(tr("unlock-hello")).icon(icon::FINGERPRINT).primary().full_width().enabled(!self.busy).loading(self.busy && self.quick);
+          if ui.add(button).clicked() {
+            quick = Some(sealed);
+          }
+          ui.vertical_centered(|ui| ui.label(RichText::new(tr("unlock-hello-or")).small().color(theme::TEXT_FAINT)));
+        }
+
         field_label(ui, &tr("unlock-password"));
         let field =
           password_field(ui, Id::new(PASSWORD_ID), &mut self.password, &mut self.reveal, !self.busy, (&tr("reveal-show"), &tr("reveal-hide")));
@@ -99,6 +116,18 @@ impl Unlock {
         }
         submit |= field.submitted;
 
+        if cx.hello
+          && let Some(path) = &self.selected
+        {
+          let mut on = cx.config.quick_unlock(path);
+          ui.horizontal(|ui| {
+            if toggle(ui, &mut on, !self.busy, &tr("unlock-hello-remember")).changed() {
+              nav = Some(Nav::SetQuickUnlock { path: path.clone(), on });
+            }
+            ui.label(RichText::new(tr("unlock-hello-remember")).color(theme::TEXT_MUTED));
+          });
+        }
+
         match (&self.error, &self.selected) {
           (Some(error), _) => notice(ui, icon::WARNING_CIRCLE, error, theme::DANGER),
           (None, None) => notice(ui, icon::INFO, &tr("unlock-select"), theme::TEXT_MUTED),
@@ -106,12 +135,14 @@ impl Unlock {
         }
         ui.add_space(4.0);
 
-        let button = ActionButton::new(tr("unlock-submit"))
+        let mut button = ActionButton::new(tr("unlock-submit"))
           .icon(icon::LOCK_KEY_OPEN)
-          .primary()
           .full_width()
           .enabled(self.selected.is_some() && !self.password.is_empty())
-          .loading(self.busy);
+          .loading(self.busy && !self.quick);
+        if sealed.is_none() {
+          button = button.primary();
+        }
         submit |= ui.add(button).clicked();
       });
 
@@ -127,10 +158,26 @@ impl Unlock {
       }
     });
 
-    if submit {
+    // Enter on an empty password field means Windows Hello.
+    if submit && self.password.is_empty() {
+      quick = quick.or(sealed);
+    }
+    if let Some(sealed) = quick {
+      self.quick_unlock(sealed, cx);
+    } else if submit {
       self.submit(cx);
     }
     nav
+  }
+
+  fn quick_unlock(&mut self, sealed: &Sealed, cx: &ScreenCtx) {
+    if self.busy {
+      return;
+    }
+    self.busy = true;
+    self.quick = true;
+    self.error = None;
+    cx.worker.quick_unlock(sealed.clone());
   }
 
   fn submit(&mut self, cx: &ScreenCtx) {
@@ -141,6 +188,7 @@ impl Unlock {
       return;
     }
     self.busy = true;
+    self.quick = false;
     self.error = None;
     cx.worker.unlock_vault(path, SecretString::from(self.password.as_str()));
   }
@@ -159,6 +207,22 @@ impl Unlock {
             self.error = Some(error_message(cx.i18n, &error));
             self.focus_password = true;
           }
+        }
+      }
+      Event::QuickUnlocked(result) => {
+        self.busy = false;
+        self.focus_password = true;
+        match result {
+          Ok(open) => return Some(Nav::Opened(Box::new(open))),
+          Err(QuickUnlockError::Hello(HelloError::Cancelled)) => {}
+          // The password changed elsewhere, or Hello was reset: only the
+          // master password can open the vault now.
+          Err(QuickUnlockError::Hello(HelloError::Stale) | QuickUnlockError::Vault(CoreError::InvalidKey)) => {
+            self.error = Some(hello_error_message(cx.i18n, &HelloError::Stale));
+            return Some(Nav::DropQuickUnlock);
+          }
+          Err(QuickUnlockError::Hello(error)) => self.error = Some(hello_error_message(cx.i18n, &error)),
+          Err(QuickUnlockError::Vault(error)) => self.error = Some(error_message(cx.i18n, &error)),
         }
       }
       Event::VaultFilePicked(Some(path)) => {

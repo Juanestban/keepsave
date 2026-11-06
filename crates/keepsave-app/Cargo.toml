@@ -12,6 +12,7 @@ name = "keepsave"
 path = "src/main.rs"
 
 [dependencies]
+aes-gcm = { version = "0.10", features = ["zeroize"] }
 arboard = { version = "3.7", default-features = false }
 chrono = "0.4"
 directories = "6.0.0"
@@ -24,6 +25,7 @@ rfd = "0.17.2"
 secrecy = "0.10.3"
 semver = "1"
 serde = { version = "1.0.229", features = ["derive"] }
+sha2 = "0.10"
 sys-locale = "0.3.2"
 tokio = { version = "1.54.1", features = ["rt", "rt-multi-thread", "net", "time"] }
 toml = "1.2.0"
@@ -33,6 +35,7 @@ zeroize = "1.9.1"
 
 [target.'cfg(windows)'.dependencies]
 base64 = "0.23"
+windows = { version = "0.62", features = ["Foundation", "Security_Credentials", "Security_Cryptography", "Storage_Streams", "Win32_System_WinRT"] }
 windows-sys = { version = "0.61", features = [
     "Win32_Foundation",
     "Win32_System_LibraryLoader",
