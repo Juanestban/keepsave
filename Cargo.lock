@@ -2222,7 +2222,7 @@ dependencies = [
 
 [[package]]
 name = "keepsave-app"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
  "aes-gcm",
  "arboard",
@@ -2253,7 +2253,7 @@ dependencies = [
 
 [[package]]
 name = "keepsave-core"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
  "chrono",
  "keepass",
@@ -2267,7 +2267,7 @@ dependencies = [
 
 [[package]]
 name = "keepsave-sync"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
  "base64 0.23.1",
  "chrono",
