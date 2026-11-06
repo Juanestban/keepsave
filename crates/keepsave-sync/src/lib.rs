@@ -19,9 +19,11 @@ pub use drive::{BACKUPS_FOLDER_NAME, DriveClient, FOLDER_NAME};
 pub use error::{Result, SyncError};
 pub use oauth::BrowserPage;
 pub use sync::{MAX_BACKUPS, SyncLink, SyncOutcome, sync_vault};
-pub use token_store::{delete_refresh_token, load_refresh_token};
+pub use token_store::{delete_client, delete_refresh_token, load_client, load_refresh_token, save_client};
 
-/// The OAuth client of this build. Not `Debug`: it holds the client secret.
+/// The user's own Google OAuth client, set up in the app and kept in the OS
+/// credential store. Builds never embed one: anything in a published `.exe`
+/// can be read back. Not `Debug`: it holds the client secret.
 #[derive(Clone)]
 pub struct Credentials {
   pub client_id: String,
@@ -29,13 +31,20 @@ pub struct Credentials {
 }
 
 impl Credentials {
-  /// The client embedded at build time, if the build had one.
-  pub fn embedded() -> Option<Self> {
-    let client_id = option_env!("KEEPSAVE_GOOGLE_CLIENT_ID")?;
-    let client_secret = option_env!("KEEPSAVE_GOOGLE_CLIENT_SECRET")?;
-    Some(Self { client_id: client_id.to_owned(), client_secret: SecretString::from(client_secret) })
+  /// A client typed or pasted by the user, if it looks like a Google
+  /// desktop client: an ID ending in `.apps.googleusercontent.com` and a
+  /// secret, both without spaces.
+  pub fn parse(client_id: &str, client_secret: &str) -> Option<Self> {
+    let client_id = client_id.trim();
+    let client_secret = client_secret.trim();
+    let prefix = client_id.strip_suffix(GOOGLE_CLIENT_SUFFIX)?;
+    let valid = |text: &str| !text.is_empty() && !text.contains(char::is_whitespace);
+    (valid(prefix) && valid(client_secret)).then(|| Self { client_id: client_id.to_owned(), client_secret: SecretString::from(client_secret) })
   }
 }
+
+/// Every Google OAuth client ID ends with this.
+pub const GOOGLE_CLIENT_SUFFIX: &str = ".apps.googleusercontent.com";
 
 /// A vault file stored remotely.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -83,6 +92,23 @@ pub trait RemoteStore: Send + Sync {
 #[cfg(test)]
 mod tests {
   use super::*;
+
+  #[test]
+  fn clients_are_checked_before_saving() {
+    use secrecy::ExposeSecret;
+    let parsed = Credentials::parse(
+      "  123-abc.apps.googleusercontent.com ",
+      " GOCSPX-x 
+",
+    )
+    .unwrap();
+    assert_eq!(parsed.client_id, "123-abc.apps.googleusercontent.com");
+    assert_eq!(parsed.client_secret.expose_secret(), "GOCSPX-x");
+    assert!(Credentials::parse(".apps.googleusercontent.com", "s").is_none());
+    assert!(Credentials::parse("123-abc", "s").is_none());
+    assert!(Credentials::parse("1 2.apps.googleusercontent.com", "s").is_none());
+    assert!(Credentials::parse("123.apps.googleusercontent.com", "").is_none());
+  }
 
   #[test]
   fn remote_files_parse_from_drive_json() {

@@ -9,8 +9,8 @@ use keepsave_sync::{BrowserPage, Credentials, DriveClient, RemoteFile, SyncError
 use crate::i18n::I18n;
 
 pub enum DriveState {
-  /// This build has no OAuth client, so Drive is hidden.
-  Unavailable,
+  /// No OAuth client yet: Drive offers the setup guide.
+  NotSetUp,
   /// `error` explains why the last attempt or connection ended, if it did.
   Disconnected {
     error: Option<String>,
@@ -20,14 +20,21 @@ pub enum DriveState {
   Connected(Arc<DriveClient>),
 }
 
+/// The user's OAuth client from the credential store, if they set one up.
+pub fn load_client() -> Option<Credentials> {
+  // An unreadable credential store is treated as no client: the guide
+  // can store a new one.
+  keepsave_sync::load_client().ok().flatten()
+}
+
 impl DriveState {
   /// Reconnects with the refresh token stored by an earlier session. Makes
   /// no network request.
-  pub fn startup(i18n: &I18n) -> Self {
-    let Some(credentials) = Credentials::embedded() else {
-      return DriveState::Unavailable;
+  pub fn startup(credentials: Option<&Credentials>, i18n: &I18n) -> Self {
+    let Some(credentials) = credentials else {
+      return DriveState::NotSetUp;
     };
-    let client = keepsave_sync::load_refresh_token().and_then(|token| token.map(|token| DriveClient::new(credentials, token)).transpose());
+    let client = keepsave_sync::load_refresh_token().and_then(|token| token.map(|token| DriveClient::new(credentials.clone(), token)).transpose());
     match client {
       Ok(Some(client)) => DriveState::Connected(Arc::new(client)),
       Ok(None) => DriveState::Disconnected { error: None },

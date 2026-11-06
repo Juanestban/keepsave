@@ -40,8 +40,7 @@ pub fn show(ui: &mut Ui, rect: Rect, screen: &MainScreen, cx: &ScreenCtx, action
     });
     ui.add_space(4.0);
 
-    let drive_shown = !matches!(cx.drive, DriveState::Unavailable);
-    let bottom_rows = usize::from(lists.bin.is_some()) + usize::from(drive_shown);
+    let bottom_rows = usize::from(lists.bin.is_some()) + 1;
     let bin_space = if bottom_rows > 0 { bottom_rows as f32 * (ROW_HEIGHT + 2.0) + 12.0 } else { 0.0 };
     ScrollArea::vertical().id_salt("main-groups").max_height((ui.available_height() - bin_space).max(0.0)).auto_shrink([false, true]).show(
       ui,
@@ -86,9 +85,7 @@ pub fn show(ui: &mut Ui, rect: Rect, screen: &MainScreen, cx: &ScreenCtx, action
           }
         });
       }
-      if drive_shown {
-        drive_section(ui, screen, cx, actions);
-      }
+      drive_section(ui, screen, cx, actions);
     });
   });
 }
@@ -99,7 +96,11 @@ fn drive_section(ui: &mut Ui, screen: &MainScreen, cx: &ScreenCtx, actions: &mut
   let tr = |key| cx.i18n.tr(key);
   let link = cx.config.drive_link(&screen.open.path);
   match cx.drive {
-    DriveState::Unavailable => {}
+    DriveState::NotSetUp => {
+      if drive_row(ui, icon::GOOGLE_DRIVE_LOGO, &tr("drive-setup"), theme::ACCENT, false).clicked() {
+        actions.push(Action::ConnectDrive);
+      }
+    }
     DriveState::Disconnected { error } => {
       let mut response = drive_row(ui, icon::CLOUD_SLASH, &tr("drive-connect-short"), theme::ACCENT, false);
       if let Some(error) = error {

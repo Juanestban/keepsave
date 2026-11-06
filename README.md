@@ -138,21 +138,14 @@ cargo build --release -p keepsave-app
 On Fedora, install the matching packages: `gcc pkg-config libxkbcommon-devel
 libxcb-devel gtk3-devel dbus-devel openssl-devel`.
 
-### Google Drive credentials (optional, for building with sync)
+### Google Drive credentials
 
-Drive sync needs your own Google OAuth client. Follow
-[docs/GOOGLE_SETUP.md](docs/GOOGLE_SETUP.md) to create one, then put the
-values in a `.env` file at the repo root:
+Drive sync uses your own Google OAuth client. You don't need it to build:
+KeepSave opens a step-by-step guide the first time you choose *Set up Google
+Drive*, and stores the client you paste in the OS credential store. The same
+steps are in [docs/GOOGLE_SETUP.md](docs/GOOGLE_SETUP.md).
 
-```dotenv
-KEEPSAVE_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
-KEEPSAVE_GOOGLE_CLIENT_SECRET=your-client-secret
-```
-
-`.env` is git-ignored. Never commit it. Environment variables with the same
-names take precedence over `.env`. The values are embedded at build time, so
-rebuild after changing them. Without them, KeepSave still builds and works as
-a local-only password manager, with the Drive actions hidden.
+No build embeds a client, so nothing secret ends up in a published `.exe`.
 
 ## Security model
 
@@ -171,8 +164,11 @@ a local-only password manager, with the Drive actions hidden.
 - **Sync:** before KeepSave overwrites the copy on Drive it keeps the old one
   in `KeepSave/backups/` (last 10 per vault). A Drive copy with a different
   master password is never overwritten.
-- **Google Drive:** OAuth uses a loopback redirect with PKCE and only the
-  `drive.file` scope, so KeepSave can only see the files it created itself.
+- **Google Drive:** you connect through your own Google OAuth client, so no
+  shared app stands between you and your Drive. OAuth uses a loopback
+  redirect with PKCE and only the `drive.file` scope, so KeepSave can only
+  see the files it created itself. The client is kept in the OS credential
+  store.
   The refresh token is stored in the OS keyring (Windows Credential Manager),
   not in a config file.
 - **Updates:** downloads are checked against the release's SHA-256
@@ -255,10 +251,9 @@ and every pull request.
    A suffix such as `v1.2.0-rc.1` publishes a pre-release, which the
    in-app updater ignores.
 3. The [release workflow](.github/workflows/release.yml) checks the tag
-   matches the version, runs the checks, builds with the Google client from
-   the repository secrets `KEEPSAVE_GOOGLE_CLIENT_ID` and
-   `KEEPSAVE_GOOGLE_CLIENT_SECRET`, and publishes the release with the MSI,
-   the portable `.exe` and `SHA256SUMS.txt`.
+   matches the version, runs the checks, builds (without a Google client:
+   users set up their own), and publishes the release with the MSI, the
+   portable `.exe` and `SHA256SUMS.txt`.
 
 To package locally, install [WiX](https://wixtoolset.org/) v5
 (`dotnet tool install --global wix --version 5.0.2`), then run:

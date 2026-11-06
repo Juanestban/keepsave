@@ -2,6 +2,7 @@
 
 mod create;
 mod drive_import;
+mod drive_setup;
 mod main;
 mod settings;
 mod unlock;
@@ -16,6 +17,7 @@ use keepsave_sync::RemoteFile;
 
 pub use create::CreateVault;
 pub use drive_import::DriveImport;
+pub use drive_setup::{DriveSetup, Request as DriveSetupRequest};
 pub use main::MainScreen;
 pub use settings::{Request as SettingsRequest, Settings, SettingsCtx};
 pub use unlock::Unlock;
@@ -39,7 +41,8 @@ pub struct ScreenCtx<'a> {
   /// The OS went to sleep or locked the session since the last frame.
   pub os_lock: bool,
   pub drive: &'a DriveState,
-  /// Settings is open on top, so the screen leaves the keyboard alone.
+  /// Settings or another modal is open on top, so the screen leaves the
+  /// keyboard alone.
   pub overlay: bool,
 }
 
@@ -58,7 +61,13 @@ pub enum Nav {
   ForgetVault(PathBuf),
   ForgetAllVaults,
   OpenSettings,
+  /// Connects, or opens the setup guide when there is no OAuth client.
   ConnectDrive,
+  SetUpDrive,
+  /// The guide's last step, to replace the user's client.
+  ChangeDriveClient,
+  /// Forgets the user's client and disconnects.
+  RemoveDriveClient,
   CancelDrive,
   DisconnectDrive,
   ImportFromDrive,

@@ -2099,7 +2099,7 @@ dependencies = [
 
 [[package]]
 name = "keepsave-app"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "arboard",
  "base64 0.23.1",
@@ -2127,7 +2127,7 @@ dependencies = [
 
 [[package]]
 name = "keepsave-core"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "chrono",
  "keepass",
@@ -2141,7 +2141,7 @@ dependencies = [
 
 [[package]]
 name = "keepsave-sync"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "base64 0.23.1",
  "chrono",

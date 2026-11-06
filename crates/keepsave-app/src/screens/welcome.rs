@@ -1,12 +1,10 @@
 //! First-run screen: create, open or import a vault.
 
-use eframe::egui::{Id, RichText, Ui, Vec2};
+use eframe::egui::{Id, Ui, Vec2};
 use egui_phosphor::regular as icon;
 
 use super::{Nav, ScreenCtx, emblem, title};
 use crate::{
-  drive::DriveState,
-  theme,
   widgets::{ActionButton, centered_column, glass_card, link},
   worker::Event,
 };
@@ -34,15 +32,9 @@ impl Welcome {
         if ui.add(open).clicked() {
           cx.worker.pick_vault_file(tr("dialog-open-title"), tr("dialog-filter"));
         }
-        let available = !matches!(cx.drive, DriveState::Unavailable);
-        let drive = ActionButton::new(tr("welcome-import-drive")).icon(icon::GOOGLE_DRIVE_LOGO).full_width().enabled(available);
+        let drive = ActionButton::new(tr("welcome-import-drive")).icon(icon::GOOGLE_DRIVE_LOGO).full_width();
         if ui.add(drive).clicked() {
           nav = Some(Nav::ImportFromDrive);
-        }
-        if !available {
-          ui.vertical_centered(|ui| {
-            ui.label(RichText::new(tr("drive-unavailable")).small().color(theme::TEXT_FAINT));
-          });
         }
       });
 

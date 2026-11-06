@@ -3,6 +3,11 @@
 KeepSave talks to Google Drive with your own OAuth client. You set this up
 once; it takes about 10 minutes.
 
+KeepSave walks you through these same steps in the app: choose **Set up
+Google Drive** (on the welcome screen's import, in the vault's sidebar, or in
+**Settings → Google Drive**). Each step has a button that opens the right
+Google Cloud page and chips that copy the exact values to type.
+
 ## 1. Create a Google Cloud project
 
 1. Go to <https://console.cloud.google.com/>.
@@ -46,24 +51,21 @@ public commits.
 
 ## 5. Give the credentials to KeepSave
 
-KeepSave reads the credentials at **build** time and embeds them in the
-binary. Put them in a `.env` file at the repo root; it is gitignored and read
-by the build script of `keepsave-sync`:
+Paste the **Client ID** and **Client secret** in the last step of the guide
+and click **Save and connect**. KeepSave stores them in the OS credential
+store (Windows Credential Manager), never in `config.toml`. To replace or
+remove them later, use **Settings → Google Drive → Google client**.
 
-```env
-KEEPSAVE_GOOGLE_CLIENT_ID=xxxxxxxx.apps.googleusercontent.com
-KEEPSAVE_GOOGLE_CLIENT_SECRET=GOCSPX-xxxxxxxx
-```
-
-Environment variables with the same names take precedence over `.env`, which
-is handy in CI. Rebuild after changing them (`cargo build`). A build without
-credentials still works, without the Drive actions.
+KeepSave never builds a client into the app, not even in your own builds:
+anything embedded in an `.exe` can be read back, so every user sets up
+their own client here.
 
 ## 6. Connect
 
-Open **Settings → Google Drive** (the gear icon) and click **Connect
-Drive**, or unlock a vault and click **Connect Google Drive** at the bottom
-of the sidebar. A browser tab opens; sign in and approve. Then click
+The guide connects right after you save the client. Later, open
+**Settings → Google Drive** (the gear icon) and click **Connect Drive**, or
+unlock a vault and click **Connect Google Drive** at the bottom of the
+sidebar. A browser tab opens; sign in and approve. Then click
 **Upload to Drive** in the vault's sidebar to copy it into a `KeepSave/`
 folder in your Drive.
 

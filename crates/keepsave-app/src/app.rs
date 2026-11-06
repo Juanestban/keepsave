@@ -12,13 +12,15 @@ use crate::{
   drive::{self, DriveState},
   fonts,
   i18n::{I18n, Language},
-  screens::{CreateVault, DriveImport, MainScreen, Nav, ScreenCtx, Settings, SettingsCtx, SettingsRequest, Unlock, Welcome},
+  screens::{
+    CreateVault, DriveImport, DriveSetup, DriveSetupRequest, MainScreen, Nav, ScreenCtx, Settings, SettingsCtx, SettingsRequest, Unlock, Welcome,
+  },
   session, theme,
   update::Updater,
   widgets::icon_button,
   worker::{Event, Worker},
 };
-use keepsave_sync::SyncError;
+use keepsave_sync::{Credentials, SyncError};
 
 /// How long a new screen takes to fade and slide in.
 const ENTRANCE_TIME: f64 = 0.28;
@@ -39,6 +41,10 @@ pub struct KeepSaveApp {
   worker: Worker,
   background: Background,
   drive: DriveState,
+  /// The OAuth client Drive uses, if there is one.
+  client: Option<Credentials>,
+  /// The Drive setup guide, over everything else.
+  drive_setup: Option<DriveSetup>,
   /// The browser sign-in in progress, to cancel it.
   connecting: Option<AbortHandle>,
   screen: Screen,
@@ -61,8 +67,11 @@ impl KeepSaveApp {
 
     let i18n = I18n::new(language);
 
+    let client = drive::load_client();
     Self {
-      drive: DriveState::startup(&i18n),
+      drive: DriveState::startup(client.as_ref(), &i18n),
+      client,
+      drive_setup: None,
       connecting: None,
       i18n,
       worker: Worker::new(cc.egui_ctx.clone()).expect("start the background runtime"),
@@ -132,10 +141,35 @@ impl KeepSaveApp {
         }
       }
       Nav::ConnectDrive => {
-        if let Some(credentials) = keepsave_sync::Credentials::embedded() {
-          self.connecting = Some(self.worker.connect_drive(credentials, drive::browser_pages(&self.i18n)));
-          self.drive = DriveState::Connecting;
+        match &self.client {
+          Some(credentials) => {
+            self.connecting = Some(self.worker.connect_drive(credentials.clone(), drive::browser_pages(&self.i18n)));
+            self.drive = DriveState::Connecting;
+          }
+          None => self.drive_setup = Some(DriveSetup::new()),
         }
+        return;
+      }
+      Nav::SetUpDrive => {
+        self.drive_setup = Some(DriveSetup::new());
+        return;
+      }
+      Nav::ChangeDriveClient => {
+        self.drive_setup = Some(DriveSetup::credentials_only());
+        return;
+      }
+      Nav::RemoveDriveClient => {
+        if let Err(error) = keepsave_sync::delete_client() {
+          // Rare (the credential store failed); Settings shows it on the
+          // connection row.
+          if let DriveState::Disconnected { error: slot } = &mut self.drive {
+            *slot = Some(drive::error_message(&self.i18n, &error));
+          }
+          return;
+        }
+        self.disconnect_drive();
+        self.client = None;
+        self.drive = DriveState::NotSetUp;
         return;
       }
       Nav::CancelDrive => {
@@ -146,9 +180,7 @@ impl KeepSaveApp {
         return;
       }
       Nav::DisconnectDrive => {
-        if let DriveState::Connected(client) = std::mem::replace(&mut self.drive, DriveState::Disconnected { error: None }) {
-          self.worker.disconnect_drive(client);
-        }
+        self.disconnect_drive();
         return;
       }
       Nav::ImportFromDrive => Screen::DriveImport(DriveImport::new()),
@@ -203,6 +235,53 @@ impl KeepSaveApp {
     self.screen_since = None;
   }
 
+  /// Drops the Drive connection and its refresh token, and cancels a
+  /// sign-in in progress.
+  fn disconnect_drive(&mut self) {
+    if let Some(task) = self.connecting.take() {
+      task.abort();
+    }
+    match std::mem::replace(&mut self.drive, DriveState::Disconnected { error: None }) {
+      DriveState::Connected(client) => self.worker.disconnect_drive(client),
+      // Not connected now, but a token from an earlier session may remain.
+      _ => {
+        let _ = keepsave_sync::delete_refresh_token();
+      }
+    }
+  }
+
+  /// Stores the client from the guide and connects with it. A different
+  /// client can't use the old refresh token, so that goes first.
+  fn save_drive_client(&mut self, credentials: Credentials, ctx: &egui::Context) {
+    if let Err(error) = keepsave_sync::save_client(&credentials) {
+      if let Some(setup) = &mut self.drive_setup {
+        setup.error = Some(drive::error_message(&self.i18n, &error));
+      }
+      return;
+    }
+    let same = self.client.as_ref().is_some_and(|current| current.client_id == credentials.client_id);
+    if !same {
+      self.disconnect_drive();
+    }
+    self.client = Some(credentials);
+    self.drive_setup = None;
+    if !matches!(self.drive, DriveState::Connected(_)) {
+      self.navigate(Nav::ConnectDrive, ctx);
+    }
+  }
+
+  /// The Drive setup guide, if it is open.
+  fn drive_setup(&mut self, ctx: &egui::Context) {
+    let Some(setup) = &mut self.drive_setup else {
+      return;
+    };
+    match setup.show(ctx, &self.i18n) {
+      Some(DriveSetupRequest::Close) => self.drive_setup = None,
+      Some(DriveSetupRequest::Save(credentials)) => self.save_drive_client(credentials, ctx),
+      None => {}
+    }
+  }
+
   fn save_config(&mut self) {
     if let Some(path) = &self.config_path {
       // Settings are a convenience: failing to write them must not
@@ -229,7 +308,13 @@ impl KeepSaveApp {
       return None;
     };
     let before = self.config.clone();
-    let cx = SettingsCtx { i18n: &self.i18n, drive: &self.drive, config_error: self.config_error.as_deref(), update: self.updater.state() };
+    let cx = SettingsCtx {
+      i18n: &self.i18n,
+      drive: &self.drive,
+      has_client: self.client.is_some(),
+      config_error: self.config_error.as_deref(),
+      update: self.updater.state(),
+    };
     let request = settings.show(ctx, &cx, &mut self.config);
     if self.config != before {
       self.save_config();
@@ -276,7 +361,7 @@ impl KeepSaveApp {
       lift: 0.0,
       os_lock: false,
       drive: &self.drive,
-      overlay: self.settings.is_some(),
+      overlay: self.settings.is_some() || self.drive_setup.is_some(),
     };
     match &mut self.screen {
       Screen::Welcome(welcome) => welcome.on_event(event),
@@ -341,7 +426,7 @@ impl eframe::App for KeepSaveApp {
           lift: (1.0 - entrance) * ENTRANCE_LIFT,
           os_lock,
           drive: &self.drive,
-          overlay: self.settings.is_some(),
+          overlay: self.settings.is_some() || self.drive_setup.is_some(),
         };
         match &mut self.screen {
           Screen::Welcome(welcome) => welcome.ui(ui, &cx),
@@ -358,7 +443,9 @@ impl eframe::App for KeepSaveApp {
     if let Some(nav) = self.settings(&ctx) {
       self.navigate(nav, &ctx);
     }
+    self.drive_setup(&ctx);
     if self.settings.is_none()
+      && self.drive_setup.is_none()
       && let Some(nav) = self.updater.banner(&ctx, &self.i18n)
     {
       self.navigate(nav, &ctx);

@@ -57,7 +57,13 @@ impl DriveImport {
       glass_card(ui, |ui| {
         ui.set_width(ui.available_width());
         match cx.drive {
-          DriveState::Unavailable => notice(ui, icon::WARNING_CIRCLE, &tr("drive-unavailable"), theme::WARNING),
+          DriveState::NotSetUp => {
+            ui.label(RichText::new(tr("drive-setup-hint")).color(theme::TEXT_MUTED));
+            ui.add_space(4.0);
+            if ui.add(ActionButton::new(tr("drive-setup")).icon(icon::GOOGLE_DRIVE_LOGO).primary().full_width()).clicked() {
+              nav = Some(Nav::SetUpDrive);
+            }
+          }
           DriveState::Disconnected { error } => {
             ui.label(RichText::new(tr("drive-connect-hint")).color(theme::TEXT_MUTED));
             if let Some(error) = error {

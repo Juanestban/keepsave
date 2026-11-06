@@ -57,6 +57,8 @@ impl Tab {
 pub struct SettingsCtx<'a> {
   pub i18n: &'a I18n,
   pub drive: &'a DriveState,
+  /// Whether the user has set up their Google client.
+  pub has_client: bool,
   /// Why `config.toml` couldn't be written, if it couldn't.
   pub config_error: Option<&'a str>,
   pub update: &'a UpdateState,
@@ -198,7 +200,11 @@ fn drive(ui: &mut Ui, cx: &SettingsCtx, config: &Config) -> Option<Nav> {
   let mut nav = None;
   section(ui, &tr("settings-drive-connection"), Some(&tr("drive-connect-hint")));
   match cx.drive {
-    DriveState::Unavailable => notice(ui, icon::INFO, &tr("drive-unavailable"), theme::TEXT_MUTED),
+    DriveState::NotSetUp => setting(ui, &tr("drive-unavailable"), Some(&tr("settings-drive-setup-hint")), |ui| {
+      if ui.add(ActionButton::new(tr("drive-setup")).icon(icon::GOOGLE_DRIVE_LOGO).primary()).clicked() {
+        nav = Some(Nav::SetUpDrive);
+      }
+    }),
     DriveState::Disconnected { error } => {
       setting(ui, &tr("settings-drive-disconnected"), None, |ui| {
         if ui.add(ActionButton::new(tr("drive-connect-short")).icon(icon::GOOGLE_DRIVE_LOGO).primary()).clicked() {
@@ -220,6 +226,19 @@ fn drive(ui: &mut Ui, cx: &SettingsCtx, config: &Config) -> Option<Nav> {
         nav = Some(Nav::DisconnectDrive);
       }
     }),
+  }
+
+  if cx.has_client {
+    ui.add_space(8.0);
+    section(ui, &tr("settings-drive-client"), None);
+    setting(ui, &tr("settings-drive-client-user"), Some(&tr("settings-drive-client-user-hint")), |ui| {
+      if icon_button(ui, icon::TRASH, &tr("settings-drive-client-remove")).clicked() {
+        nav = Some(Nav::RemoveDriveClient);
+      }
+      if ui.add(ActionButton::new(tr("settings-drive-client-change")).icon(icon::PENCIL_SIMPLE)).clicked() {
+        nav = Some(Nav::ChangeDriveClient);
+      }
+    });
   }
 
   ui.add_space(8.0);

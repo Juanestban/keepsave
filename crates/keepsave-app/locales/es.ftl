@@ -172,7 +172,9 @@ dialog-stay = Quedarme
 
 drive-title = Importar desde Google Drive
 drive-subtitle = Elige una bóveda de la carpeta KeepSave de tu Drive.
-drive-unavailable = Google Drive no está configurado en esta compilación.
+drive-unavailable = Google Drive aún no está configurado.
+drive-setup = Configurar Google Drive
+drive-setup-hint = KeepSave se conecta a Drive con un cliente privado de Google que creas una sola vez. Una guía paso a paso te acompaña.
 drive-connect = Conectar Google Drive
 drive-connect-short = Conectar Drive
 drive-connect-hint = Se abrirá una pestaña del navegador para que inicies sesión en Google. KeepSave solo puede ver los archivos que crea.
@@ -253,6 +255,12 @@ settings-drive-disconnect = Desconectar
 settings-drive-links = Bóvedas vinculadas
 settings-drive-links-empty = Aún no hay bóvedas vinculadas. Abre una bóveda y elige “Subir a Drive” en su barra lateral.
 settings-drive-unlink = Desvincular esta bóveda
+settings-drive-setup-hint = Crea tu propio cliente de Google con la guía. Son unos 10 minutos.
+settings-drive-client = Cliente de Google
+settings-drive-client-user = Tu propio cliente
+settings-drive-client-user-hint = Guardado en el almacén de credenciales del sistema, nunca en el archivo de ajustes.
+settings-drive-client-change = Cambiar
+settings-drive-client-remove = Quitar el cliente y desconectar
 settings-language-system = Sistema ({ $language })
 settings-animated-background = Fondo animado
 settings-animated-background-hint = Si está apagado, el fondo queda quieto y gasta menos energía.
@@ -297,6 +305,77 @@ update-error-rate-limit = GitHub está limitando las peticiones. Inténtalo más
 update-error-checksum = La descarga está dañada. Inténtalo de nuevo.
 update-error-missing = Esta versión no se puede instalar desde la app. Descárgala desde la página de la versión.
 update-error-folder = KeepSave no puede escribir en su carpeta. Descarga la actualización desde la página de la versión.
+
+
+## Google Drive setup guide
+
+gsetup-title = Configurar Google Drive
+gsetup-close = Cerrar la guía
+gsetup-time = Unos 10 minutos
+gsetup-step-of = Paso { $step } de { $total }
+gsetup-start = Empezar
+gsetup-next = Siguiente
+gsetup-back = Atrás
+gsetup-save = Guardar y conectar
+gsetup-open-cloud = Abrir en Google Cloud
+gsetup-full-guide = Leer la guía completa en GitHub
+gsetup-copied = Copiado
+gsetup-chip-project = Nombre del proyecto
+gsetup-chip-app = Nombre de la app
+gsetup-chip-scope = Permiso
+gsetup-chip-client = Nombre
+gsetup-client-id = ID de cliente
+gsetup-client-secret = Secreto del cliente
+gsetup-client-id-invalid = Un ID de cliente termina en .apps.googleusercontent.com.
+
+gsetup-intro-title = Tu propia conexión privada con Drive
+gsetup-intro-body = KeepSave habla con Google Drive mediante un cliente de Google que es tuyo, así que no interviene la app de nadie más. Lo creas una vez, gratis, en Google Cloud.
+gsetup-intro-1 = Necesitas una cuenta de Google. Usa aquella cuyo Drive guardará tus vaults.
+gsetup-intro-2 = Deja esta ventana abierta. Cada paso tiene un botón que abre la página correcta de Google Cloud.
+gsetup-intro-3 = Haz clic en un valor para copiarlo y pégalo donde indique el paso.
+gsetup-intro-tip = Tu vault se cifra antes de salir de este PC, y KeepSave solo puede ver los archivos que crea en tu Drive.
+
+gsetup-project-title = Crea un proyecto
+gsetup-project-body = Un proyecto guarda la configuración de tu cliente de Google.
+gsetup-project-1 = Llama al proyecto KeepSave y haz clic en Crear.
+gsetup-project-2 = Espera la notificación de que el proyecto está listo.
+gsetup-project-3 = Comprueba que KeepSave está seleccionado en el selector de proyectos de arriba.
+
+gsetup-api-title = Activa la API de Google Drive
+gsetup-api-body = Esto permite que tu proyecto hable con Google Drive.
+gsetup-api-1 = Comprueba que el proyecto seleccionado arriba es KeepSave.
+gsetup-api-2 = Haz clic en Habilitar y espera a que cargue la página de la API.
+
+gsetup-branding-title = Describe la app
+gsetup-branding-body = Es lo que Google muestra cuando inicias sesión desde KeepSave.
+gsetup-branding-1 = Haz clic en Comenzar.
+gsetup-branding-2 = Nombre de la app: KeepSave. Correo de asistencia: tu correo. Haz clic en Siguiente.
+gsetup-branding-3 = Público: Externo. Haz clic en Siguiente.
+gsetup-branding-4 = Correo de contacto: tu correo. Haz clic en Siguiente, acepta la política y haz clic en Crear.
+
+gsetup-scope-title = Permite el acceso a los archivos de KeepSave
+gsetup-scope-body = El permiso que KeepSave pedirá.
+gsetup-scope-1 = Haz clic en Agregar o quitar permisos.
+gsetup-scope-2 = En Agregar permisos manualmente, pega el permiso y haz clic en Agregar a la tabla.
+gsetup-scope-3 = Haz clic en Actualizar y luego en Guardar, al final de la página.
+gsetup-scope-tip = Este permiso deja que KeepSave vea solo los archivos que crea, nunca el resto de tu Drive.
+
+gsetup-publish-title = Publica la app
+gsetup-publish-body = Saca la app del modo de prueba para que la conexión no caduque.
+gsetup-publish-1 = En Estado de publicación, haz clic en Publicar app.
+gsetup-publish-2 = Confirma. El estado cambia a En producción.
+gsetup-publish-tip = En modo de prueba, Google desconecta KeepSave cada 7 días. Este permiso no necesita la revisión de Google para publicar.
+
+gsetup-client-title = Crea el cliente
+gsetup-client-body = El cliente es el par de claves con el que KeepSave te hace iniciar sesión.
+gsetup-client-1 = Tipo de aplicación: App de escritorio.
+gsetup-client-2 = Nombre: KeepSave desktop. Haz clic en Crear.
+gsetup-client-3 = Copia el ID de cliente y el secreto del cliente del cuadro que se abre.
+gsetup-client-tip = Descargar JSON en ese cuadro guarda una copia. Guárdala en un lugar privado.
+
+gsetup-paste-title = Pega tu cliente
+gsetup-paste-body = KeepSave lo guarda en el almacén de credenciales del sistema, nunca en su archivo de ajustes.
+gsetup-paste-tip = Al conectar, Google avisa de que no ha verificado la app. Es tu propia app: haz clic en Configuración avanzada y luego en Ir a KeepSave.
 
 ## Password generator
 

@@ -125,11 +125,24 @@ backup copy is kept in a separate folder on every upload.
   listener gives up after 5 minutes and the user can cancel it.
 - The access token lives only in memory. A refresh token that Google rejects
   (`invalid_grant`) disconnects Drive and asks the user to connect again.
-- **Credentials:** the client ID and secret are embedded at build time. A
-  build script reads `KEEPSAVE_GOOGLE_CLIENT_ID` and
-  `KEEPSAVE_GOOGLE_CLIENT_SECRET` from the environment, or from `.env` at the
-  repo root. A build without them works as a local-only manager and hides the
-  Drive actions.
+- **Credentials (revised after v1.1):** each user brings their own OAuth
+  client. A desktop app can't keep a client secret: anything in the `.exe`
+  can be read back with a hex editor. Google says as much for installed
+  apps, and security rests on PKCE, the loopback redirect and the user's
+  consent. But a client shipped in a public release could still be reused
+  to impersonate "KeepSave" on a consent screen or to burn the project's
+  quota, and Google could suspend it for everyone. So:
+  - KeepSave opens an in-app **setup guide** (see Q16) that walks the user
+    through creating the client, then takes the client ID and secret. They
+    are stored together in the OS credential store (account
+    `google-client`), never in `config.toml`.
+  - No build embeds a client, not even a developer's: there is no build-time
+    setting for it, so a published `.exe` can't leak one by mistake. The
+    developer goes through the same guide as everyone else.
+  - Without a client, Drive shows "Set up Google Drive" wherever it would
+    offer to connect.
+  - Saving a different client forgets the refresh token, which belongs to
+    the old one. Removing the client also disconnects.
 - Scope: `https://www.googleapis.com/auth/drive.file`. The app sees only files
   it created, in a visible `KeepSave/` folder, so mobile KeePass apps can open
   the same file.
@@ -307,8 +320,10 @@ branding or assets from any existing product.
      lock on minimize, lock on OS sleep or session lock, clear the
      clipboard after (off, 10, 15, 30, 60 or 90 s).
    - **Google Drive:** connection state with Connect, Cancel or
-     Disconnect, and the linked vaults (name on Drive, local path, pending
-     upload) with Unlink.
+     Disconnect; which OAuth client is in use (yours, or the one built in)
+     with *Change* (reopens the guide on its last step) and *Remove*; and
+     the linked vaults (name on Drive, local path, pending upload) with
+     Unlink.
    - **Language:** System, Español, English.
    - **Appearance:** animated background (off draws a still frame and stops
      the constant repaint).
@@ -319,6 +334,18 @@ branding or assets from any existing product.
 5. **Password generator** (M6): a button in the main top bar opens the
    generator (Q18) in a modal. Its action copies the password, with the
    same auto-clear as any other copied secret.
+6. **Google Drive setup guide** (after v1.1): a modal stepper, opened by
+   any "Set up Google Drive" action. A row of numbered dots shows progress;
+   Back and Next move between steps. Steps follow `GOOGLE_SETUP.md`:
+   intro (what it is and why it is private), create a project, enable the
+   Drive API, branding (consent screen), data access (the `drive.file`
+   scope), publish the app (In production), create a Desktop client, and
+   paste the client ID and secret. Each step has short numbered
+   instructions, an *Open in Google Cloud* button with a deep link, chips
+   that copy the exact values to type (`KeepSave`, the scope URL, the
+   client name), and a tip where Google's console is confusing. The last
+   step checks the ID's format (`….apps.googleusercontent.com`) and offers
+   *Save and connect*.
 
 ### Q18 — Password generator
 
@@ -394,8 +421,8 @@ crates/
   silent updates. `cargo-wix` was dropped because it targets WiX v3 and
   machine-wide installs.
 - **Releases:** `.github/workflows/release.yml` runs on a `v*` tag. It checks
-  that the tag matches the workspace version, builds the release `.exe` with
-  the Google client from the repository secrets, builds the MSI, and
+  that the tag matches the workspace version, builds the release `.exe`
+  without a Google client (see Q11), builds the MSI, and
   publishes a GitHub Release with `keepsave-<version>-x64.msi`,
   `keepsave-<version>-x64-portable.exe` and `SHA256SUMS.txt`. A tag with a
   pre-release suffix (`v1.1.0-rc.1`) makes a pre-release, which the updater

@@ -36,12 +36,10 @@ jobs:
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
 
-      # Without the secrets the build still works, with Drive hidden.
+      # No Google client is embedded: anything in a public .exe can be read
+      # back. Users set up their own in the app (DESIGN.md Q11).
       - name: Build
         run: cargo build --release -p keepsave-app
-        env:
-          KEEPSAVE_GOOGLE_CLIENT_ID: ${{ secrets.KEEPSAVE_GOOGLE_CLIENT_ID }}
-          KEEPSAVE_GOOGLE_CLIENT_SECRET: ${{ secrets.KEEPSAVE_GOOGLE_CLIENT_SECRET }}
 
       - name: Install WiX
         run: dotnet tool install --global wix --version 5.0.2

@@ -77,13 +77,23 @@ Code complete; waiting for a check with two PCs (or two vault copies) on a real 
 
 ## M7 — Installer & updates ✅
 
-- [x] Release workflow: tag `v*` → checks, build with the Google client from secrets, GitHub Release
+- [x] Release workflow: tag `v*` → checks, build, GitHub Release
 - [x] Per-user MSI (WiX v5) and `scripts/package.ps1` (MSI, portable `.exe`, `SHA256SUMS.txt`)
 - [x] Update check at startup and every 6 h (Settings → About: status, Check now, automatic toggle)
 - [x] Update banner: download with progress, SHA-256 check, restart into the new version (MSI or portable)
 - [x] Fix: the worker runtime had no IO/timer driver, so every network task panicked
 - [x] Version 1.1.0
 - [ ] Manual check: install the MSI, then update from one release to the next
+
+## M8 — Bring your own Google client ✅
+
+- [x] Users set up their own OAuth client in the app; it is kept in the OS credential store
+- [x] In-app setup guide: stepper with deep links, copyable values and tips, ending in Save and connect
+- [x] Settings → Google Drive: the client in use, Change and Remove
+- [x] Drive actions show "Set up Google Drive" instead of hiding when there is no client
+- [x] No build embeds a client: the `.env` build script is gone
+- [x] Version 1.2.0
+- [ ] Manual check: go through the guide with a real Google account and sync a vault
 
 ## Post-v1 backlog
 
